@@ -292,6 +292,9 @@ class Parse
 
         if ($token[0] == INST_HEADER) {
             $this->instruction();
+        } else {
+            fwrite(STDERR, "ERROR: Missing .IPPcode18 header on first line!\n");
+            exit(ERROR_CODE);
         }
     }
 
