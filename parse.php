@@ -234,6 +234,7 @@ class Scanner
                     $this->unget(1);
 
                     if (strtolower($string) != "ippcode18") {
+                        echo $string;
                         fwrite(STDERR, "ERROR: Missing .IPPcode18 header on first line!\n");
                         exit(ERROR_CODE);
                     }
@@ -521,7 +522,7 @@ class Parse
             $this->scanner->unget(1);
         }
 
-        if (($token[1] != "") and preg_match("/[^A-Za-z0-9\-\*\$%_&]/", $token[1])) {
+        if (($token[1] != "") and preg_match("/[^A-ZÁ-Ža-zá-ž0-9\-\*\$%_&]/", $token[1])) {
             fwrite(STDERR, "ERROR: Variable or label name contains illegal characters!\n");
             exit(ERROR_CODE);
         }
