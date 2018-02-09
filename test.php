@@ -1,81 +1,171 @@
 <?php
-//TODO: File open permissions
 
-class TestResult
+class Test
 {
-    private $test;
+    private $files;
+    private $data;
+    private $settings;
     private $runtime;
-    private $exitcode;
-    private $exitcodeSame;
-    private $outputTested;
-    private $outputSame;
-    private $testPassed;
+    private $reason;
+    private $passed;
 
-    public function __construct($test, $runtime, $exitcode, $exitcodeSame, $outputTested, $outputSame, $testPassed)
+    public function __construct($files, $data, $settings)
     {
-        $this->test = $test;
-        $this->runtime = $runtime;
-        $this->exitcode = $exitcode;
-        $this->exitcodeSame = $exitcodeSame;
-        $this->outputTested = $outputTested;
-        $this->outputSame = $outputSame;
-        $this->testPassed = $testPassed;
+        $this->files = $files;
+        $this->data = $data;
+        $this->settings = $settings;
+        $this->run();
     }
 
-    /**
-     * @return mixed
-     */
-    public function getOutputTested()
+    private function run()
     {
-        return $this->outputTested;
+        $test_start = microtime(true);
+
+        if ($this->data["exitcode"] != 0) {
+            $results = $this->compareExitCode();
+        } else {
+            $results = $this->compareOutput();
+        }
+
+        $test_end = microtime(true);
+
+        $this->runtime = round(($test_end - $test_start) * 100, 2);
+        $this->passed = $results[0];
+        $this->reason = $results[1];
     }
 
-    /**
-     * @return mixed
-     */
-    public function getExitcode()
+    private function compareOutput()
     {
-        return $this->exitcode;
+        $result = array();
+
+        $xml = exec("php5.6 " . $this->settings["parser"] . " < " . $this->files["src"] . " 2> /dev/null", $null, $exitCode);
+
+        if ($exitCode != 0) {
+            $result[0] = false;
+            $result[1] = "Parser ended with exit code " . $exitCode . " (expected 0).";
+            return $result;
+        }
+
+        $temp = tmpfile();
+        fwrite($temp, $xml);
+        fseek($temp, 0);
+        $tempData = stream_get_meta_data($temp);
+
+        exec("python3.6 " . $this->settings["interpret"] . " --source=" . $tempData["uri"] . " > " . $tempData["uri"] . " 2> /dev/null", $null, $exitCode);
+
+        if ($exitCode != 0) {
+            $result[0] = false;
+            $result[1] = "Interpret ended with exit code " . $exitCode . " (expected 0).";
+            return $result;
+        }
+
+        $diff = exec("diff " . $tempData["uri"] . " " . $this->files["out"] . " 2> /dev/null");
+        fclose($temp);
+
+        if (empty($diff)) {
+            $result[0] = true;
+            $result[1] = "Obtained expected output.";
+        } else {
+            $result[0] = false;
+            $result[1] = "Obtained different output.";
+        }
+
+        return $result;
     }
 
-    /**
-     * @return mixed
-     */
-    public function getTest()
+    private function compareExitCode()
     {
-        return $this->test;
+        $result = array();
+
+        if ($this->data["exitcode"] == 21) {
+            exec("php5.6 " . $this->settings["parser"] . " < " . $this->files["src"] . " 2> /dev/null", $null, $exitCode);
+
+            if ($exitCode == 21) {
+                $result[0] = true;
+                $result[1] = "Parser ended with expected exit code (21).";
+            } else {
+                $result[0] = false;
+                $result[1] = "Parser ended with exit code " . $exitCode . " (expected 21).";
+            }
+        } else {
+            $xml = exec("php5.6 " . $this->settings["parser"] . " < " . $this->files["src"] . " 2> /dev/null");
+
+            $temp = tmpfile();
+            fwrite($temp, $xml);
+            fseek($temp, 0);
+            $tempData = stream_get_meta_data($temp);
+
+            exec("python3.6 " . $this->settings["interpret"] . " --source=" . $tempData["uri"] . " 2> /dev/null", $null, $exitCode);
+
+            if ($exitCode == $this->data["exitcode"]) {
+                $result[0] = true;
+                $result[1] = "Parser ended with expected exit code (" . $this->data["exitcode"] . ").";
+            } else {
+                $result[0] = false;
+                $result[1] = "Parser ended with exit code " . $exitCode . " (expected " . $this->data["exitcode"] . ").";
+            }
+
+            fclose($temp);
+        }
+
+        return $result;
     }
 
-    /**
-     * @return mixed
-     */
+    public function getTestLocation()
+    {
+        return $this->files["src"];
+    }
+
+    public function getResult()
+    {
+        return $this->passed;
+    }
+
+    public function getReason()
+    {
+        return $this->reason;
+    }
+
     public function getRuntime()
     {
         return $this->runtime;
     }
+}
 
-    /**
-     * @return mixed
-     */
-    public function getExitcodeSame()
+class TestsFactory
+{
+    public static function runTest($srcFile, $settings)
     {
-        return $this->exitcodeSame;
+        $filesPath = substr($srcFile, 0, -4);
+
+        $files = array();
+        $files["src"] = $srcFile;
+        $files["out"] = $filesPath . ".out";
+        $files["in"] = $filesPath . ".in";
+        $files["rc"] = $filesPath . ".rc";
+
+        $data = array();
+        $data["output"] = self::getTestFileContent($filesPath . ".out", null);
+        $data["stdin"] = self::getTestFileContent($filesPath . ".in", null);
+        $data["exitcode"] = self::getTestFileContent($filesPath . ".rc", 0);
+
+        return new Test($files, $data, $settings);
     }
 
-    /**
-     * @return mixed
-     */
-    public function getOutputSame()
+    private static function getTestFileContent($file, $default)
     {
-        return $this->outputSame;
-    }
+        if (!file_exists($file)) {
+            $newFile = fopen($file, "w");
 
-    /**
-     * @return mixed
-     */
-    public function getTestPassed()
-    {
-        return $this->testPassed;
+            if ($default != null) {
+                fwrite($newFile, $default);
+            }
+
+            fclose($newFile);
+            return ($default != null) ? $default : "";
+        } else {
+            return file_get_contents($file);
+        }
     }
 }
 
@@ -103,7 +193,7 @@ if (isset($options["help"]) && $argc != 2) {
     echo "Help\n";
     exit(0);
 } elseif (count($argv) !== (count($options) + 1)) {
-    error_log("ERROR: Bad parameters usage! Use --help.");
+    fwrite(STDERR, "ERROR: Bad parameters usage! Use --help.\n");
     exit(10);
 } else {
     foreach ($options as $option => $value) {
@@ -125,13 +215,13 @@ if (isset($options["help"]) && $argc != 2) {
 }
 
 if (!file_exists($settings["dir"]) || !is_dir($settings["dir"])) {
-    error_log("ERROR: Tests directory (" . $settings["dir"] . ") does not exist or isn not a directory!");
+    fwrite(STDERR, "ERROR: Tests directory (" . $settings["dir"] . ") does not exist or isn not a directory!\n");
     exit(11);
 } elseif (!file_exists($settings["parser"])) {
-    error_log("ERROR: Parser file (" . $settings["parser"] . ") does not exist!");
+    fwrite(STDERR, "ERROR: Parser file (" . $settings["parser"] . ") does not exist!\n");
     exit(11);
 } elseif (!file_exists($settings["interpret"])) {
-    error_log("ERROR: Interpret file (" . $settings["interpret"] . ") does not exist!");
+    fwrite(STDERR, "ERROR: Interpret file (" . $settings["interpret"] . ") does not exist!\n");
     exit(11);
 }
 
@@ -144,59 +234,12 @@ $testsNumber = 0;
 $testsFailed = 0;
 
 foreach ($files as $file) {
-    $filePath = $file[0];
-    $testFiles = substr($filePath, 0, -4);
+    $tests[] = TestsFactory::runTest($file[0], $settings);
 
-    if (!file_exists($testFiles . ".out")) {
-        $newOut = fopen($testFiles . ".out", "w");
-        $outputExpected = "";
-        fclose($newOut);
-    } else {
-        $outputExpected = file_get_contents($testFiles . ".out");
-    }
-
-    if (!file_exists($testFiles . ".in")) {
-        $newIn = fopen($testFiles . ".in", "w");
-        $in = "";
-        fclose($newIn);
-    } else {
-        $in = file_get_contents($testFiles . ".in");
-    }
-
-    if (!file_exists($testFiles . ".rc")) {
-        $newRc = fopen($testFiles . ".rc", "w");
-        $rc = 0;
-        fwrite($newRc, "0");
-        fclose($newRc);
-    } else {
-        $rc = file_get_contents($testFiles . ".rc");
-    }
-
-    $test_start = microtime(true);
-    $xml = exec("php5.6 " . $settings["parser"] . " < " . $filePath);
-    $temp = tmpfile();
-    fwrite($temp, $xml);
-    fseek($temp, 0);
-    $data = stream_get_meta_data($temp);
-
-    $output = exec("python3.6 " . $settings["interpret"] . " --source=" . $data["uri"] . " > " . $data["uri"], $o, $exitcode);
-    $diff = exec("diff " . $data["uri"] . " " . $testFiles . ".out");
-    fclose($temp);
-    $test_end = microtime(true);
-
-    $outputSame = true;
-    $exitcodeSame = true;
-
-    if ($rc != $exitcode) {
-        $exitcodeSame = false;
-        $outputSame = false;
-        ++$testsFailed;
-    } elseif (!empty($diff)) {
-        $outputSame = false;
+    if (!$tests[$testsNumber]->getResult()) {
         ++$testsFailed;
     }
 
-    $tests[] = new TestResult($filePath, round(($test_end - $test_start) * 100, 2), $exitcode, $exitcodeSame, (($rc == 0 and $exitcodeSame) ? true : false), $outputSame, ($exitcodeSame && $outputSame));
     ++$testsNumber;
 }
 
@@ -222,7 +265,7 @@ table {
 }
 
 .tests {
-    max-width: 800px;
+    max-width: 900px;
 }
 
 tr {
@@ -241,27 +284,38 @@ th {
 
 tr.head {
     height: 70px;
-    background-color: #63acb7;
+    background-color: #2a617c;
     color: #f6f3f7;
     font-size: 26px;
 }
 
 .tests tr.head {
     height: 25px;;
-    background-color: #63acb7;
+    background-color: #2a617c;
     color: #f6f3f7;
     font-size: 22px;
     
 }
 
 .tests td {
-    border: rgba(0, 0, 0, 0.05) 1px solid;
+    border: rgba(0, 0, 0, 0.25) 1px solid;
     text-align: left;
+}
+
+.tests tr {
+    border: rgba(0, 0, 0, 0.25) 1px solid;
 }
 
 .tests td.center {
     text-align: center;
+    white-space: nowrap;
     width: 1%;
+}
+
+.tests td.nowrap {
+    white-space: nowrap;
+    width: 1%;
+    min-width: 300px;
 }
 
 .success {
@@ -280,7 +334,61 @@ tr.head {
     padding: 4px;
 }
 
+.buttons button {
+    cursor: pointer;
+    background-color: #53bfe2; 
+    color: #ffffff;
+    border: none;
+    padding: 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+}
+
+.buttons button:hover, .buttons button.active {
+    background-color: #038cb7; 
+}
 </style>
+<script type='text/javascript'>
+function showTests(type) {
+    if (type === 0) {
+        [].forEach.call(document.querySelectorAll('.test'), function (el) {
+            el.style.display = '';
+        });
+        
+        document.getElementById('showAll').classList.add('active');
+        document.getElementById('showFailed').classList.remove('active');
+        document.getElementById('showSuccessful').classList.remove('active');
+    }
+    else if (type === 1) {
+        [].forEach.call(document.querySelectorAll('.test.success'), function (el) {
+            el.style.display = 'none';
+        });
+        
+        [].forEach.call(document.querySelectorAll('.test.failure'), function (el) {
+            el.style.display = '';
+        });
+        
+        document.getElementById('showAll').classList.remove('active');
+        document.getElementById('showFailed').classList.add('active');
+        document.getElementById('showSuccessful').classList.remove('active');
+    }
+    else if (type === 2) {
+        [].forEach.call(document.querySelectorAll('.test.success'), function (el) {
+            el.style.display = '';
+        });
+        
+        [].forEach.call(document.querySelectorAll('.test.failure'), function (el) {
+            el.style.display = 'none';
+        });
+        
+        document.getElementById('showAll').classList.remove('active');
+        document.getElementById('showFailed').classList.remove('active');
+        document.getElementById('showSuccessful').classList.add('active');
+    }
+}
+</script>
 </head>
 <body>
 <table class='summary'>
@@ -300,37 +408,31 @@ tr.head {
     </tr>
 </table>
 
+<div class='buttons'>
+    <button id='showAll' class='active' onclick='showTests(0)'>Show all tests</button>
+    <button id='showFailed' onclick='showTests(1)'>Show failed tests</button>
+    <button id='showSuccessful' onclick='showTests(2)'>Show successful tests</button>
+</div>
 
 <table class='tests'>
     <tr class='head'>
-        <th>Test</th>  
-        <th>Runtime</th>  
-        <th>Exitcode</th>  
-        <th>Output</th>  
+        <th>Test</th>   
+        <th>Reason</th>  
+        <th>Runtime</th> 
+        <th>Result</th>  
     </tr>";
 
 foreach ($tests as $test) {
-    $output = "SAME";
-
-    if (!$test->getOutputTested()) {
-        $output = "----";
-    } elseif (!$test->getOutputSame()) {
-        $output = "DIFF";
-    }
-
     echo "
-    <tr>
-        <td class='" . (($test->getTestPassed()) ? "success" : "failure") . "'>" . $test->getTest() . "</td>  
+    <tr class='test " . (($test->getResult()) ? "success" : "failure") . "'>
+        <td>" . $test->getTestLocation() . "</td>  
+        <td class='nowrap'>" . $test->getReason() . "</td>  
         <td class='center'>" . $test->getRuntime() . " ms</td>  
-        <td class='center " . (($test->getExitcodeSame()) ? "success" : "failure") . "'>" . $test->getExitcode() . "</td>  
-        <td class='center " . (($test->getOutputSame()) ? "success" : "failure") . "'>" . $output . " </td >  
-    </tr > ";
+        <td class='center'><strong>" . (($test->getResult()) ? "PASS" : "FAIL") . "</strong></td>  
+    </tr>";
 }
 
 echo "
-</table >
-</body >
-</html >
-    ";
-
-exit(0);
+</table>
+</body>
+</html>";

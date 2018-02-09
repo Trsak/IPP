@@ -8,7 +8,7 @@
 const ERROR_PARAM = 10;
 const ERROR_FILE_IN = 11;
 const ERROR_FILE_OUT = 12;
-const ERROR_CODE = 31;
+const ERROR_CODE = 21;
 
 //Scanner constants
 const FILE_END = -2;
@@ -99,7 +99,7 @@ class Scanner
                     } elseif ($char == "@") {
                         $this->unget(2);
                         if (ctype_space(fgetc(STDIN))) {
-                            error_log("ERROR: Spaces before separator are not allowed!");
+                            fwrite(STDERR, "ERROR: Spaces before separator are not allowed!\n");
                             exit(ERROR_CODE);
                         }
                         fgetc(STDIN);
@@ -234,7 +234,7 @@ class Scanner
                     $this->unget(1);
 
                     if (strtolower($string) != "ippcode18") {
-                        error_log("ERROR: Missing .IPPcode18 header on first line!");
+                        fwrite(STDERR, "ERROR: Missing .IPPcode18 header on first line!\n");
                         exit(ERROR_CODE);
                     }
 
@@ -300,7 +300,7 @@ class Parse
         $token = $this->scanner->getNextToken();
 
         if ($token[0] != NEWLINE) {
-            error_log("ERROR: Every instruction must be on it's own line!");
+            fwrite(STDERR, "ERROR: Every instruction must be on it's own line!\n");
             exit(ERROR_CODE);
         }
 
@@ -494,7 +494,7 @@ class Parse
                 $this->instruction();
             }
         } else {
-            error_log("ERROR: Expected instruction, obtained something else!");
+            fwrite(STDERR, "ERROR: Expected instruction, obtained something else!\n");
             exit(ERROR_CODE);
         }
     }
@@ -519,12 +519,12 @@ class Parse
         }
 
         if (($token[1] != "") and preg_match("/[^A-Za-z0-9\-\*\$%_&]/", $token[1])) {
-            error_log("ERROR: Variable or label name contains illegal characters!");
+            fwrite(STDERR, "ERROR: Variable or label name contains illegal characters!\n");
             exit(ERROR_CODE);
         }
 
         if (ctype_digit($token[1][0])) {
-            error_log("ERROR: Variable or label name can not start with number!");
+            fwrite(STDERR, "ERROR: Variable or label name can not start with number!\n");
             exit(ERROR_CODE);
         }
 
@@ -538,7 +538,7 @@ class Parse
         if ($token[0] >= FRAME_GLOBAL && $token[0] <= FRAME_TEMPORARY) {
             return $token[1];
         } else {
-            error_log("ERROR: Expected frame, obtained something else!");
+            fwrite(STDERR, "ERROR: Expected frame, obtained something else!\n");
             exit(ERROR_CODE);
         }
     }
@@ -551,7 +551,7 @@ class Parse
         if ($token[0] == SEPARATOR) {
             return $token[1];
         } else {
-            error_log("ERROR: Expected separator, obtained something else!");
+            fwrite(STDERR, "ERROR: Expected separator, obtained something else!\n");
             exit(ERROR_CODE);
         }
     }
@@ -566,7 +566,7 @@ class Parse
             xmlwriter_text($this->xml, $token[1]);
             xmlwriter_end_element($this->xml);
         } else {
-            error_log("ERROR: Expected type, obtained something else!");
+            fwrite(STDERR, "ERROR: Expected type, obtained something else!\n");
             exit(ERROR_CODE);
         }
     }
@@ -610,7 +610,7 @@ class Parse
 
             xmlwriter_end_element($this->xml);
         } else {
-            error_log("ERROR: Expected symbol, obtained something else!");
+            fwrite(STDERR, "ERROR: Expected symbol, obtained something else!\n");
             exit(ERROR_CODE);
         }
 
@@ -652,7 +652,7 @@ if (empty($options) && $argc == 1) {
     echo "-------- Program help --------\nProgram reads source code of IPPcode18 from STDIN, then makes lexical and syntactic analysis of it.\n
     If analysis ends successfully, XML with program representation is printed to STDOUT.\n";
 } else {
-    error_log("ERROR: Bad parameters usage! Use --help.");
+    fwrite(STDERR, "ERROR: Bad parameters usage! Use --help.\n");
     exit(ERROR_PARAM);
 }
 
