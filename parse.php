@@ -50,6 +50,7 @@ const INST_BREAK = 33;
 const TYPE_INT = 40;
 const TYPE_STRING = 41;
 const TYPE_BOOL = 42;
+const TYPE_FLOAT = 43;
 const FRAME_GLOBAL = 50;
 const FRAME_LOCAL = 51;
 const FRAME_TEMPORARY = 52;
@@ -207,6 +208,8 @@ class Scanner
                                 return [TYPE_STRING, "string"];
                             case "bool":
                                 return [TYPE_BOOL, "bool"];
+                            case "float":
+                                return [TYPE_FLOAT, "float"];
                             case "GF":
                                 return [FRAME_GLOBAL, "GF"];
                             case "LF":
@@ -272,7 +275,7 @@ class Parse
 
         $this->xml = new XMLWriter();
         $this->xml->openMemory();
-        $this->xml->setIndent(1);
+        $this->xml->setIndent(4);
         $this->xml->startDocument("1.0", "UTF-8");
         $this->xml->setIndentString(" ");
 
@@ -565,7 +568,7 @@ class Parse
     function type()
     {
         $token = $this->scanner->getNextToken();
-        if ($token[0] >= TYPE_INT && $token[0] <= TYPE_BOOL) {
+        if ($token[0] >= TYPE_INT && $token[0] <= TYPE_FLOAT) {
             $this->xml->startElement("arg" . (++$this->arg));
             $this->addXMLAtribute("type", "type");
             $this->xml->text($token[1]);
@@ -590,7 +593,7 @@ class Parse
     function symb()
     {
         $token = $this->scanner->getNextToken();
-        if (($token[0] >= FRAME_GLOBAL && $token[0] <= FRAME_TEMPORARY) || ($token[0] >= TYPE_INT && $token[0] <= TYPE_BOOL)) {
+        if (($token[0] >= FRAME_GLOBAL && $token[0] <= FRAME_TEMPORARY) || ($token[0] >= TYPE_INT && $token[0] <= TYPE_FLOAT)) {
             $symb = $token[1];
             $sep = $this->separator();
 

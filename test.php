@@ -1,4 +1,5 @@
 <?php
+header("Content-Type: text/html; charset=UTF-8");
 
 class Test
 {
@@ -38,7 +39,8 @@ class Test
     {
         $result = array();
 
-        $xml = exec("php5.6 " . $this->settings["parser"] . " < " . $this->files["src"] . " 2> /dev/null", $null, $exitCode);
+        exec("php5.6 " . $this->settings["parser"] . " < " . $this->files["src"] . " 2> /dev/null", $out, $exitCode);
+        $xml = implode("\n", $out);
 
         if ($exitCode != 0) {
             $result[0] = false;
@@ -51,7 +53,8 @@ class Test
         fseek($temp, 0);
         $tempData = stream_get_meta_data($temp);
 
-        exec("python3.6 " . $this->settings["interpret"] . " --source=" . $tempData["uri"] . " < " . $this->files["in"] . " > " . $tempData["uri"] . " 2> /dev/null", $null, $exitCode);
+        exec("python3.6 " . $this->settings["interpret"] . " --source=\"" . $tempData["uri"] . "\" ", $outInterpret, $exitCode);
+        file_put_contents($tempData["uri"], $outInterpret);
 
         if ($exitCode != 0) {
             $result[0] = false;
@@ -172,10 +175,10 @@ class TestsFactory
 $time_start = microtime(true);
 
 $settings = array(
-    "dir" => "./",
+    "dir" => getcwd(),
     "recursively" => false,
-    "parser" => "./parse.php",
-    "interpret" => "./interpret.py"
+    "parser" => getcwd() . "/parse.php",
+    "interpret" => getcwd() . "/interpret.py"
 );
 
 ///Program options
@@ -244,7 +247,6 @@ foreach ($files as $file) {
 }
 
 $time_end = microtime(true);
-header("Content-Type: text/html; charset=UTF-8");
 
 echo "
 <!DOCTYPE html>

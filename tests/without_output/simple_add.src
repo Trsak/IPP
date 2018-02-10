@@ -1,0 +1,4 @@
+.ippcode18
+DEFVAR GF@x
+MOVE GF@x int@0
+ADD GF@x int@10 GF@x
