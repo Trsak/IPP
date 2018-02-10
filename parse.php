@@ -233,7 +233,7 @@ class Scanner
                     }
                     $this->unget(1);
 
-                    if (strtolower($string) != "ippcode18") {
+                    if (trim(strtolower($string)) != "ippcode18") {
                         echo $string;
                         fwrite(STDERR, "ERROR: Missing .IPPcode18 header on first line!\n");
                         exit(ERROR_CODE);
@@ -270,20 +270,21 @@ class Parse
         $this->order = 0;
         $this->arg = 0;
 
-        $this->xml = xmlwriter_open_memory();
-        xmlwriter_set_indent($this->xml, 1);
-        xmlwriter_set_indent_string($this->xml, ' ');
-        xmlwriter_start_document($this->xml, '1.0', 'UTF-8');
+        $this->xml = new XMLWriter();
+        $this->xml->openMemory();
+        $this->xml->setIndent(1);
+        $this->xml->startDocument("1.0", "UTF-8");
+        $this->xml->setIndentString(" ");
 
-        xmlwriter_start_element($this->xml, 'program');
+        $this->xml->startElement('program');
 
         $this->addXMLAtribute("language", "IPPcode18");
 
         $this->start();
 
-        xmlwriter_end_element($this->xml);
-        xmlwriter_end_document($this->xml);
-        echo xmlwriter_output_memory($this->xml);
+        $this->xml->endElement();;
+        $this->xml->endDocument();
+        echo $this->xml->outputMemory();
         exit(0);
     }
 
@@ -317,7 +318,7 @@ class Parse
 
         if ($token[0] >= INST_MOVE && $token[0] <= INST_BREAK) {
             $this->arg = 0;
-            xmlwriter_start_element($this->xml, 'instruction');
+            $this->xml->startElement("instruction");
             $this->addXMLAtribute("order", ++$this->order);
 
             switch ($token[0]) {
@@ -493,7 +494,7 @@ class Parse
                     break;
             }
 
-            xmlwriter_end_element($this->xml);
+            $this->xml->endElement();
             if (!feof(STDIN)) {
                 $this->instruction();
             }
@@ -565,10 +566,10 @@ class Parse
     {
         $token = $this->scanner->getNextToken();
         if ($token[0] >= TYPE_INT && $token[0] <= TYPE_BOOL) {
-            xmlwriter_start_element($this->xml, 'arg' . (++$this->arg));
+            $this->xml->startElement("arg" . (++$this->arg));
             $this->addXMLAtribute("type", "type");
-            xmlwriter_text($this->xml, $token[1]);
-            xmlwriter_end_element($this->xml);
+            $this->xml->text($token[1]);
+            $this->xml->endElement();
         } else {
             fwrite(STDERR, "ERROR: Expected type, obtained something else!\n");
             exit(ERROR_CODE);
@@ -579,10 +580,10 @@ class Parse
     function label()
     {
         $name = $this->name();
-        xmlwriter_start_element($this->xml, 'arg' . (++$this->arg));
+        $this->xml->startElement("arg" . (++$this->arg));
         $this->addXMLAtribute("type", "label");
-        xmlwriter_text($this->xml, $name);
-        xmlwriter_end_element($this->xml);
+        $this->xml->text($name);
+        $this->xml->endElement();
     }
 
     private
@@ -593,11 +594,11 @@ class Parse
             $symb = $token[1];
             $sep = $this->separator();
 
-            xmlwriter_start_element($this->xml, 'arg' . (++$this->arg));
+            $this->xml->startElement("arg" . (++$this->arg));
             if ($token[0] >= FRAME_GLOBAL && $token[0] <= FRAME_TEMPORARY) {
                 $name = $this->name();
                 $this->addXMLAtribute("type", "var");
-                xmlwriter_text($this->xml, strtoupper($symb) . $sep . $name);
+                $this->xml->text(strtoupper($symb) . $sep . $name);
             } else {
                 $name = $this->value();
                 $this->addXMLAtribute("type", $token[1]);
@@ -609,10 +610,11 @@ class Parse
                 } elseif ($token[0] == TYPE_BOOL) {
                     $name = strtolower($name);
                 }
-                xmlwriter_text($this->xml, $name);
+
+                $this->xml->text($name);
             }
 
-            xmlwriter_end_element($this->xml);
+            $this->xml->endElement();
         } else {
             fwrite(STDERR, "ERROR: Expected symbol, obtained something else!\n");
             exit(ERROR_CODE);
@@ -620,25 +622,23 @@ class Parse
 
     }
 
-    private
-    function variable()
+    private function variable()
     {
         $frame = $this->frame();
         $sep = $this->separator();
         $name = $this->name();
 
-        xmlwriter_start_element($this->xml, 'arg' . (++$this->arg));
+        $this->xml->startElement("arg" . (++$this->arg));
         $this->addXMLAtribute("type", "var");
-        xmlwriter_text($this->xml, strtoupper($frame) . $sep . $name);
-        xmlwriter_end_element($this->xml);
+        $this->xml->text(strtoupper($frame) . $sep . $name);
+        $this->xml->endElement();
     }
 
-    private
-    function addXMLAtribute($attribute, $value)
+    private function addXMLAtribute($attribute, $value)
     {
-        xmlwriter_start_attribute($this->xml, $attribute);
-        xmlwriter_text($this->xml, $value);
-        xmlwriter_end_attribute($this->xml);
+        $this->xml->startAttribute($attribute);
+        $this->xml->text($value);
+        $this->xml->endAttribute();
     }
 }
 

@@ -336,7 +336,7 @@ tr.head {
 
 .buttons button {
     cursor: pointer;
-    background-color: #53bfe2; 
+    background-color: #497d96; 
     color: #ffffff;
     border: none;
     padding: 15px;
@@ -347,7 +347,7 @@ tr.head {
 }
 
 .buttons button:hover, .buttons button.active {
-    background-color: #038cb7; 
+    background-color: #2a617c; 
 }
 </style>
 <script type='text/javascript'>
