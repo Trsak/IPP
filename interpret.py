@@ -1,6 +1,7 @@
 import argparse
 import sys
 import xml.etree.ElementTree as ET
+import interpret_factory as IFactory
 
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument("--help", action="store_true")
@@ -36,8 +37,10 @@ try:
         elif attrib != "name" and attrib != "description":
             raise ET.ParseError("program element can only contain language, name or description attributes")
 
+    interpret = IFactory.InterpretFactory()
     order = 1
     for child in root:
+        opcode = None
         if child.tag != "instruction":
             raise ET.ParseError("program element can contain only instruction subelements")
 
@@ -54,9 +57,34 @@ try:
             else:
                 raise ET.ParseError("instruction element can only contain opcode or order argument")
 
+        arg_num = 1
+        args_list = []
+        for arg in child:
+            if arg.tag != ("arg%d" % arg_num):
+                raise ET.ParseError("wrong argument number")
+
+            if "type" not in arg.attrib:
+                raise ET.ParseError("missing type attribute in arg element")
+
+            if len(arg.attrib) != 1:
+                raise ET.ParseError("non allowed attributes in arg element")
+
+            types = ["int", "bool", "string", "float", "label", "type", "var", "label"]
+
+            if arg.attrib["type"] not in types:
+                raise ET.ParseError("non allowed arg type")
+
+            args_list.append([arg.attrib["type"], arg.text])
+            arg_num += 1
+
+        interpret.add_instruction(opcode, args_list)
+
 except FileNotFoundError:
     sys.stderr.write("ERROR: Can not open source file!\n")
     exit(11)
 except ET.ParseError as e:
     sys.stderr.write("ERROR: Source file has wrong XML format (%s)!\n" % str(e))
     exit(31)
+except IFactory.IPPcodeParseError as e:
+    sys.stderr.write("ERROR: Lexical or syntax error in XML (%s)!\n" % str(e))
+    exit(32)

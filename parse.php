@@ -91,6 +91,9 @@ class Scanner
                         return [NEWLINE, ""];
                     } elseif (ctype_space($char)) {
                         while (ctype_space($char = fgetc(STDIN))) {
+                            if ($char == PHP_EOL) {
+                                return [NEWLINE, ""];
+                            }
                             continue;
                         }
 
@@ -237,7 +240,6 @@ class Scanner
                     $this->unget(1);
 
                     if (trim(strtolower($string)) != "ippcode18") {
-                        echo $string;
                         fwrite(STDERR, "ERROR: Missing .IPPcode18 header on first line!\n");
                         exit(ERROR_CODE);
                     }
@@ -510,6 +512,7 @@ class Parse
     private function value()
     {
         $token = $this->scanner->getNextToken();
+
         if ($token[0] == NEWLINE) {
             $token[1] = "";
             $this->scanner->unget(1);

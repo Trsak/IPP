@@ -33,7 +33,7 @@ WRITE	 GF@counter
 
 
 
-WRITE 	string@\010@$%^&*
+WRITE 	string@\010$%^&*
 
 
 
