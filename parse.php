@@ -65,10 +65,10 @@ const NEWLINE = 102;
 class Scanner
 {
     /**
-     * Alternative to unget function in C
+     * Alternative to unGet function in C
      * @param $num
      */
-    public function unget($num)
+    public function unGet($num)
     {
         fseek(STDIN, ftell(STDIN) - $num);
     }
@@ -97,11 +97,11 @@ class Scanner
                             continue;
                         }
 
-                        $this->unget(1);
+                        $this->unGet(1);
                     } elseif ($char == "#") {
                         $state = 2;
                     } elseif ($char == "@") {
-                        $this->unget(2);
+                        $this->unGet(2);
                         if (ctype_space(fgetc(STDIN))) {
                             fwrite(STDERR, "ERROR: Spaces before separator are not allowed!\n");
                             exit(ERROR_CODE);
@@ -118,10 +118,18 @@ class Scanner
                             if ($char === false) {
                                 break;
                             } elseif ($char == "@") {
-                                $this->unget(1);
+                                $this->unGet(1);
                                 break;
                             } elseif ($char == "#") {
                                 $ignore = true;
+                            } elseif ($char == "\\") {
+                                $escapeSequence = fgetc(STDIN) . fgetc(STDIN) . fgetc(STDIN);
+                                if (!ctype_digit($escapeSequence)) {
+                                    fwrite(STDERR, "ERROR: Wrong escape sequence!\n");
+                                    exit(ERROR_CODE);
+                                }
+
+                                $char .= $escapeSequence;
                             }
 
                             if (!$ignore) {
@@ -130,7 +138,7 @@ class Scanner
                         }
 
                         if ($char == PHP_EOL) {
-                            $this->unget(1);
+                            $this->unGet(1);
                         }
 
                         switch (strtolower($string)) {
@@ -237,7 +245,7 @@ class Scanner
                             $string .= $char;
                         }
                     }
-                    $this->unget(1);
+                    $this->unGet(1);
 
                     if (trim(strtolower($string)) != "ippcode18") {
                         fwrite(STDERR, "ERROR: Missing .IPPcode18 header on first line!\n");
@@ -515,7 +523,7 @@ class Parse
 
         if ($token[0] == NEWLINE) {
             $token[1] = "";
-            $this->scanner->unget(1);
+            $this->scanner->unGet(1);
         }
 
         return $token[1];
@@ -526,7 +534,7 @@ class Parse
         $token = $this->scanner->getNextToken();
         if ($token[0] == NEWLINE) {
             $token[1] = "";
-            $this->scanner->unget(1);
+            $this->scanner->unGet(1);
         }
 
         if (($token[1] != "") and preg_match("/[^A-ZÁ-Ža-zá-ž0-9\-\*\$%_&]/", $token[1])) {
@@ -614,7 +622,10 @@ class Parse
                     $replacement = array("&lt;", "&gt;", "&amp;");
                     str_replace($name, $replacement, $char);
                 } elseif ($token[0] == TYPE_BOOL) {
-                    $name = strtolower($name);
+                    if ($name != "true" && $name != "false") {
+                        fwrite(STDERR, "ERROR: Wrong bool value!\n");
+                        exit(ERROR_CODE);
+                    }
                 }
 
                 $this->xml->text($name);

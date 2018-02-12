@@ -7,7 +7,7 @@ DEFVAR   GF@counter	 #asdugbo adsfgasdfasdf
 
 MOVE GF@counter string@
 LABEL while
-JUMPIFEQ	 end    GF@counter  string@a\03252aa
+JUMPIFEQ	 end    GF@counter  string@a\9999d
 WRITE string@counter\032obsahuje\032
 WRITE	 GF@counter
 
@@ -38,7 +38,7 @@ WRITE 	string@\010$%^&*
 
 
 
-WRITE bool@soidnagogubfnj
+WRITE bool@true
 
 
 
