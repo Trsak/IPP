@@ -75,9 +75,11 @@ class Scanner
 
     /**
      * Returns token
+     * @param $commentsCount
+     * @param bool $gettingValue
      * @return array
      */
-    public function getNextToken()
+    public function getNextToken(&$commentsCount, $gettingValue = false)
     {
         $state = 0;
 
@@ -99,8 +101,13 @@ class Scanner
 
                         $this->unGet(1);
                     } elseif ($char == "#") {
+                        ++$commentsCount;
                         $state = 2;
-                    } elseif ($char == "@") {
+
+                        if(fgetc(STDIN) == PHP_EOL) {
+                            return [NEWLINE, ""];
+                        }
+                    } elseif ($char == "@" && !$gettingValue) {
                         $this->unGet(2);
                         if (ctype_space(fgetc(STDIN))) {
                             fwrite(STDERR, "ERROR: Spaces before separator are not allowed!\n");
@@ -117,11 +124,17 @@ class Scanner
                         while (!ctype_space($char = fgetc(STDIN))) {
                             if ($char === false) {
                                 break;
-                            } elseif ($char == "@") {
+                            } elseif ($char == "@" && !$gettingValue) {
                                 $this->unGet(1);
                                 break;
                             } elseif ($char == "#") {
+                                ++$commentsCount;
                                 $ignore = true;
+
+                                while (($char = fgetc(STDIN)) != PHP_EOL) {
+                                    continue;
+                                }
+                                $this->unGet(1);
                             } elseif ($char == "\\") {
                                 $escapeSequence = fgetc(STDIN) . fgetc(STDIN) . fgetc(STDIN);
                                 if (!ctype_digit($escapeSequence)) {
@@ -182,7 +195,7 @@ class Scanner
                                 return [INST_NOT, $string];
                             case "int2char":
                                 return [INST_INT2CHAR, $string];
-                            case "str2int":
+                            case "stri2int":
                                 return [INST_STRI2INT, $string];
                             case "read":
                                 return [INST_READ, $string];
@@ -228,6 +241,9 @@ class Scanner
                             case "TF":
                                 return [FRAME_TEMPORARY, "TF"];
                             default:
+                                if ($string == false) {
+                                    return [FILE_END, $string];
+                                }
                                 return [UNKNOWN, $string];
                         }
                     }
@@ -238,6 +254,7 @@ class Scanner
 
                     while (($char = fgetc(STDIN)) != PHP_EOL) {
                         if ($char == "#") {
+                            ++$commentsCount;
                             $ignore = true;
                         }
 
@@ -276,12 +293,14 @@ class Parse
     private $order;
     private $arg;
     private $xml;
+    private $commentsCount;
 
     public function __construct()
     {
         $this->scanner = new Scanner;
         $this->order = 0;
         $this->arg = 0;
+        $this->commentsCount = 0;
 
         $this->xml = new XMLWriter();
         $this->xml->openMemory();
@@ -297,13 +316,26 @@ class Parse
 
         $this->xml->endElement();;
         $this->xml->endDocument();
-        echo $this->xml->outputMemory();
-        exit(0);
+    }
+
+    public function getXML()
+    {
+        return $this->xml->outputMemory();
+    }
+
+    public function getInstructionsNumber()
+    {
+        return $this->order;
+    }
+
+    public function getCommentsCount()
+    {
+        return $this->commentsCount;
     }
 
     private function start()
     {
-        $token = $this->scanner->getNextToken();
+        $token = $this->scanner->getNextToken($this->commentsCount);
 
         if ($token[0] == INST_HEADER) {
             $this->instruction();
@@ -315,18 +347,19 @@ class Parse
 
     private function instruction()
     {
-        $token = $this->scanner->getNextToken();
+        $token = $this->scanner->getNextToken($this->commentsCount);
 
         if ($token[0] != NEWLINE) {
+            var_dump($token);
             fwrite(STDERR, "ERROR: Every instruction must be on it's own line!\n");
             exit(ERROR_CODE);
         }
 
 
-        $token = $this->scanner->getNextToken();
+        $token = $this->scanner->getNextToken($this->commentsCount);
 
         while ($token[0] == NEWLINE) {
-            $token = $this->scanner->getNextToken();
+            $token = $this->scanner->getNextToken($this->commentsCount);
         }
 
         if ($token[0] >= INST_MOVE && $token[0] <= INST_BREAK) {
@@ -426,7 +459,6 @@ class Parse
                     $this->addXMLAtribute("opcode", "NOT");
                     $this->variable();
                     $this->symb();
-                    $this->symb();
                     break;
                 case INST_INT2CHAR:
                     $this->addXMLAtribute("opcode", "INT2CHAR");
@@ -512,6 +544,10 @@ class Parse
                 $this->instruction();
             }
         } else {
+            if (feof(STDIN)) {
+                return;
+            }
+
             fwrite(STDERR, "ERROR: Expected instruction, obtained something else!\n");
             exit(ERROR_CODE);
         }
@@ -519,7 +555,7 @@ class Parse
 
     private function value()
     {
-        $token = $this->scanner->getNextToken();
+        $token = $this->scanner->getNextToken($this->commentsCount, true);
 
         if ($token[0] == NEWLINE) {
             $token[1] = "";
@@ -531,13 +567,13 @@ class Parse
 
     private function name()
     {
-        $token = $this->scanner->getNextToken();
+        $token = $this->scanner->getNextToken($this->commentsCount);
         if ($token[0] == NEWLINE) {
             $token[1] = "";
             $this->scanner->unGet(1);
         }
 
-        if (($token[1] != "") and preg_match("/[^A-ZÁ-Ža-zá-ž0-9\-\*\$%_&]/", $token[1])) {
+        if (($token[1] != "") && preg_match("/[^A-ZÁ-Ža-zá-ž0-9\-\*\$%_&]/", $token[1])) {
             fwrite(STDERR, "ERROR: Variable or label name contains illegal characters!\n");
             exit(ERROR_CODE);
         }
@@ -553,7 +589,7 @@ class Parse
     private
     function frame()
     {
-        $token = $this->scanner->getNextToken();
+        $token = $this->scanner->getNextToken($this->commentsCount);
         if ($token[0] >= FRAME_GLOBAL && $token[0] <= FRAME_TEMPORARY) {
             return $token[1];
         } else {
@@ -565,7 +601,7 @@ class Parse
     private
     function separator()
     {
-        $token = $this->scanner->getNextToken();
+        $token = $this->scanner->getNextToken($this->commentsCount);
 
         if ($token[0] == SEPARATOR) {
             return $token[1];
@@ -578,7 +614,7 @@ class Parse
     private
     function type()
     {
-        $token = $this->scanner->getNextToken();
+        $token = $this->scanner->getNextToken($this->commentsCount);
         if ($token[0] >= TYPE_INT && $token[0] <= TYPE_FLOAT) {
             $this->xml->startElement("arg" . (++$this->arg));
             $this->addXMLAtribute("type", "type");
@@ -603,7 +639,7 @@ class Parse
     private
     function symb()
     {
-        $token = $this->scanner->getNextToken();
+        $token = $this->scanner->getNextToken($this->commentsCount);
         if (($token[0] >= FRAME_GLOBAL && $token[0] <= FRAME_TEMPORARY) || ($token[0] >= TYPE_INT && $token[0] <= TYPE_FLOAT)) {
             $symb = $token[1];
             $sep = $this->separator();
@@ -664,11 +700,64 @@ class Parse
 $shortOptions = "";
 $longOptions = array(
     "help",
+    "stats:",
+    "comments",
+    "loc"
 );
 
 $options = getopt($shortOptions, $longOptions);
-if (empty($options) && $argc == 1) {
+
+if ((empty($options) && $argc == 1) || (!empty($options) && isset($options["stats"]))) {
+    $logFile = false;
+    $logLoc = false;
+    $logComents = false;
+
+    if (isset($options["stats"])) {
+        $logFile = $options["stats"];
+
+        if (!is_file($logFile) || !is_writable($logFile)) {
+            fwrite(STDERR, "ERROR: Stats file does not exist or is not writable!\n");
+            exit(ERROR_FILE_OUT);
+        }
+    }
+
+    if (isset($options["loc"])) {
+        $logLoc = true;
+    }
+
+    if (isset($options["comments"])) {
+        $logComents = true;
+    }
+
+    if ($logFile && !$logLoc && !$logComents) {
+        fwrite(STDERR, "ERROR: Missing --loc or --comments parametr for stats!\n");
+        exit(ERROR_PARAM);
+    } elseif ($logFile && ($logLoc && $logComents) && $argc != 4) {
+        fwrite(STDERR, "ERROR: Bad parameters usage! Use --help.\n");
+        exit(ERROR_PARAM);
+    } elseif ($logFile && ((!$logLoc || !$logComents) && $argc != 3)) {
+        fwrite(STDERR, "ERROR: Bad parameters usage! Use --help.\n");
+        exit(ERROR_PARAM);
+    }
+
     $parse = new Parse;
+    echo $parse->getXML();
+
+    if ($logFile) {
+        $content = "";
+        foreach ($options as $key => $option) {
+            if ($key == "loc") {
+                $content .= $parse->getInstructionsNumber()."\n";
+            }
+            elseif ($key == "comments") {
+                $content .= $parse->getCommentsCount()."\n";
+            }
+        }
+
+        file_put_contents($logFile, $content);
+    }
+
+    exit(0);
 } elseif (isset($options["help"]) && $argc == 2) {
     echo "-------- Program help --------\nProgram reads source code of IPPcode18 from STDIN, then makes lexical and syntactic analysis of it.\n
     If analysis ends successfully, XML with program representation is printed to STDOUT.\n";
@@ -676,5 +765,3 @@ if (empty($options) && $argc == 1) {
     fwrite(STDERR, "ERROR: Bad parameters usage! Use --help.\n");
     exit(ERROR_PARAM);
 }
-
-exit(0);

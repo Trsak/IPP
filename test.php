@@ -114,6 +114,14 @@ class Test
         return $result;
     }
 
+    public function getTestName()
+    {
+        $info = pathinfo ($this->files["src"]);
+        $name = $info["filename"];
+        $name = str_replace("_", " ", $name);
+        return ucfirst($name);
+    }
+
     public function getTestLocation()
     {
         return $this->files["src"];
@@ -427,7 +435,7 @@ function showTests(type) {
 foreach ($tests as $test) {
     echo "
     <tr class='test " . (($test->getResult()) ? "success" : "failure") . "'>
-        <td>" . $test->getTestLocation() . "</td>  
+        <td>" . $test->getTestName() . "</td>  
         <td class='nowrap'>" . $test->getReason() . "</td>  
         <td class='center'>" . $test->getRuntime() . " ms</td>  
         <td class='center'><strong>" . (($test->getResult()) ? "PASS" : "FAIL") . "</strong></td>  
