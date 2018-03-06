@@ -87,10 +87,9 @@ class InterpretFactory:
                 self.symb(args[1])
                 self.symb(args[2])
             elif opcode == "NOT":
-                self.count_args(len(args), 3, opcode)
+                self.count_args(len(args), 2, opcode)
                 self.var(args[0])
                 self.symb(args[1])
-                self.symb(args[2])
             elif opcode == "INT2CHAR":
                 self.count_args(len(args), 2, opcode)
                 self.var(args[0])

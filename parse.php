@@ -272,6 +272,9 @@ class Scanner
                     return [INST_HEADER];
                 case 2:
                     while (($char = fgetc(STDIN)) != PHP_EOL) {
+                        if (feof(STDIN)) {
+                            break;
+                        }
                         continue;
                     }
 
@@ -714,11 +717,6 @@ if ((empty($options) && $argc == 1) || (!empty($options) && isset($options["stat
 
     if (isset($options["stats"])) {
         $logFile = $options["stats"];
-
-        if (!is_file($logFile) || !is_writable($logFile)) {
-            fwrite(STDERR, "ERROR: Stats file does not exist or is not writable!\n");
-            exit(ERROR_FILE_OUT);
-        }
     }
 
     if (isset($options["loc"])) {
@@ -741,7 +739,6 @@ if ((empty($options) && $argc == 1) || (!empty($options) && isset($options["stat
     }
 
     $parse = new Parse;
-    echo $parse->getXML();
 
     if ($logFile) {
         $content = "";
@@ -754,8 +751,14 @@ if ((empty($options) && $argc == 1) || (!empty($options) && isset($options["stat
             }
         }
 
-        file_put_contents($logFile, $content);
+        $writeStats = @file_put_contents($logFile, $content);
+        if (!$writeStats) {
+            fwrite(STDERR, "ERROR: Permissions denied for stats file.\n");
+            exit(ERROR_FILE_OUT);
+        }
     }
+
+    echo $parse->getXML();
 
     exit(0);
 } elseif (isset($options["help"]) && $argc == 2) {
