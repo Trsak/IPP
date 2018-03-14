@@ -104,7 +104,7 @@ class Scanner
                         ++$commentsCount;
                         $state = 2;
 
-                        if(fgetc(STDIN) == PHP_EOL) {
+                        if (fgetc(STDIN) == PHP_EOL) {
                             return [NEWLINE, ""];
                         }
                     } elseif ($char == "@" && !$gettingValue) {
@@ -341,7 +341,9 @@ class Parse
         $token = $this->scanner->getNextToken($this->commentsCount);
 
         if ($token[0] == INST_HEADER) {
-            $this->instruction();
+            while (!feof(STDIN)) {
+                $this->instruction();
+            }
         } else {
             fwrite(STDERR, "ERROR: Missing .IPPcode18 header on first line!\n");
             exit(ERROR_CODE);
@@ -543,9 +545,6 @@ class Parse
             }
 
             $this->xml->endElement();
-            if (!feof(STDIN)) {
-                $this->instruction();
-            }
         } else {
             if (feof(STDIN)) {
                 return;
@@ -744,10 +743,9 @@ if ((empty($options) && $argc == 1) || (!empty($options) && isset($options["stat
         $content = "";
         foreach ($options as $key => $option) {
             if ($key == "loc") {
-                $content .= $parse->getInstructionsNumber()."\n";
-            }
-            elseif ($key == "comments") {
-                $content .= $parse->getCommentsCount()."\n";
+                $content .= $parse->getInstructionsNumber() . "\n";
+            } elseif ($key == "comments") {
+                $content .= $parse->getCommentsCount() . "\n";
             }
         }
 
