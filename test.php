@@ -116,7 +116,7 @@ class Test
 
     public function getTestName()
     {
-        $info = pathinfo ($this->files["src"]);
+        $info = pathinfo($this->files["src"]);
         $name = $info["filename"];
         $name = str_replace("_", " ", $name);
         return ucfirst($name);
@@ -183,8 +183,9 @@ class TestsFactory
 $time_start = microtime(true);
 
 $settings = array(
-    "dir" => getcwd(),
+    "dir" => array(getcwd()),
     "recursively" => false,
+    "match" => ".*",
     "parser" => getcwd() . "/parse.php",
     "interpret" => getcwd() . "/interpret.py"
 );
@@ -196,6 +197,8 @@ $longOptions = array(
     "directory:",
     "parse-script:",
     "int-script:",
+    "testlist:",
+    "match:",
     "recursive"
 );
 
@@ -203,17 +206,30 @@ $options = getopt($shortOptions, $longOptions);
 if (isset($options["help"]) && $argc != 2) {
     echo "Help\n";
     exit(0);
-} elseif (count($argv) !== (count($options) + 1)) {
+} elseif ((count($argv) !== (count($options) + 1)) && !isset($options["testlist"])) {
     fwrite(STDERR, "ERROR: Bad parameters usage! Use --help.\n");
+    exit(10);
+} elseif (isset($options["directory"]) && isset($options["testlist"])) {
+    fwrite(STDERR, "ERROR: Can not use directory parameter with testlist parameter!\n");
     exit(10);
 } else {
     foreach ($options as $option => $value) {
         switch ($option) {
             case "directory":
-                $settings["dir"] = $value;
+                $settings["dir"][0] = $value;
+                break;
+            case "testlist":
+                if (!is_array($value)) {
+                    $settings["dir"][0] = $value;
+                } else {
+                    $settings["dir"] = $value;
+                }
                 break;
             case "recursive":
                 $settings["recursively"] = true;
+                break;
+            case "match":
+                $settings["match"] = $value;
                 break;
             case "parse-script":
                 $settings["parser"] = $value;
@@ -225,10 +241,7 @@ if (isset($options["help"]) && $argc != 2) {
     }
 }
 
-if (!file_exists($settings["dir"]) || !is_dir($settings["dir"])) {
-    fwrite(STDERR, "ERROR: Tests directory (" . $settings["dir"] . ") does not exist or isn not a directory!\n");
-    exit(11);
-} elseif (!file_exists($settings["parser"])) {
+if (!file_exists($settings["parser"])) {
     fwrite(STDERR, "ERROR: Parser file (" . $settings["parser"] . ") does not exist!\n");
     exit(11);
 } elseif (!file_exists($settings["interpret"])) {
@@ -236,22 +249,37 @@ if (!file_exists($settings["dir"]) || !is_dir($settings["dir"])) {
     exit(11);
 }
 
-$dir = new RecursiveDirectoryIterator($settings["dir"]);
-$ite = new RecursiveIteratorIterator($dir);
-$files = new RegexIterator(($settings["recursively"] === true) ? $ite : $dir, "/^.*\.(src)$/", RegexIterator::GET_MATCH);
-
+$alreadyTestedFiles = array();
 $tests = [];
 $testsNumber = 0;
 $testsFailed = 0;
 
-foreach ($files as $file) {
-    $tests[] = TestsFactory::runTest($file[0], $settings);
-
-    if (!$tests[$testsNumber]->getResult()) {
-        ++$testsFailed;
+foreach ($settings["dir"] as $directory) {
+    if (!file_exists($directory) || !is_dir($directory)) {
+        fwrite(STDERR, "ERROR: Tests directory (" . $directory . ") does not exist or is not a directory!\n");
+        exit(11);
     }
 
-    ++$testsNumber;
+    $dir = new RecursiveDirectoryIterator($directory);
+    $ite = new RecursiveIteratorIterator($dir);
+    $files = new RegexIterator(($settings["recursively"] === true) ? $ite : $dir, "/^.*\.(src)$/", RegexIterator::GET_MATCH);
+
+    foreach ($files as $file) {
+        $fileName = substr(basename($file[0]), 0, -4);
+
+        if (@preg_match("/" . $settings["match"] . "/", $fileName)) {
+            if (!in_array($file[0], $alreadyTestedFiles)) {
+                $tests[] = TestsFactory::runTest($file[0], $settings);
+
+                if (!$tests[$testsNumber]->getResult()) {
+                    ++$testsFailed;
+                }
+
+                ++$testsNumber;
+                $alreadyTestedFiles[] = $file[0];
+            }
+        }
+    }
 }
 
 $time_end = microtime(true);
