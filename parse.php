@@ -103,10 +103,6 @@ class Scanner
                     } elseif ($char == "#") {
                         ++$commentsCount;
                         $state = 2;
-
-                        if (fgetc(STDIN) == PHP_EOL) {
-                            return [NEWLINE, ""];
-                        }
                     } elseif ($char == "@" && !$gettingValue) {
                         $this->unGet(2);
                         if (ctype_space(fgetc(STDIN))) {
