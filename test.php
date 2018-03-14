@@ -366,12 +366,12 @@ foreach ($settings["dir"] as $directory) {
     $files = array();
 
     //Check if directory exists
-    if (!file_exists($directory) || !is_dir($directory)) {
-        if (!isset($options["testlist"])) {
+    if (!is_dir($directory)) {
+        if (!isset($options["testlist"]) || !file_exists($directory)) {
             fwrite(STDERR, "ERROR: Tests directory (" . $directory . ") does not exist or is not a directory!\n");
             exit(11);
         } else {
-            if (pathinfo($directory, PATHINFO_EXTENSION) == ".src") {
+            if ((pathinfo($directory, PATHINFO_EXTENSION) != "src")) {
                 fwrite(STDERR, "ERROR: " . $directory . " is not directory or .src file!\n");
                 exit(11);
             }
