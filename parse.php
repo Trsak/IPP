@@ -2,6 +2,7 @@
 /**
  * @author Petr Sopf <xsopfp00@stud.fit.vutbr.cz>
  * @project IPPcode18
+ * @file parse.php
  */
 
 //Error constants
@@ -60,13 +61,15 @@ const END = 101;
 const NEWLINE = 102;
 
 /**
- * Class Scanner for lexical analysis
+ * Scanner is used for tokenization of chars from STDIN
  */
 class Scanner
 {
     /**
-     * Alternative to unGet function in C
-     * @param $num
+     * Changes current file position indicator in STDIN
+     * New position is calculated by (current position - $num)
+     * @param int $num How many chars to go back
+     * @return void
      */
     public function unGet($num)
     {
@@ -74,24 +77,30 @@ class Scanner
     }
 
     /**
-     * Returns token
-     * @param $commentsCount
-     * @param bool $gettingValue
-     * @return array
+     * Returns next token
+     * Implemented as finite automaton
+     * @param int $commentsCount Reference to variable used to count comments
+     * @param bool $gettingValue If true, all chars until first white char will be returned
+     * @return array Index 0 contains token constant, index 1 contains it's value
      */
     public function getNextToken(&$commentsCount, $gettingValue = false)
     {
         $state = 0;
 
         while (true) {
+            //Get next char from STDIN
             $char = fgetc(STDIN);
+
             switch ($state) {
                 case 0:
                     if ($char == ".") {
+                        //Might be introductory row
                         $state = 1;
                     } elseif ($char == PHP_EOL) {
+                        //New line
                         return [NEWLINE, ""];
                     } elseif (ctype_space($char)) {
+                        //Get rid of spaces
                         while (ctype_space($char = fgetc(STDIN))) {
                             if ($char == PHP_EOL) {
                                 return [NEWLINE, ""];
@@ -101,9 +110,11 @@ class Scanner
 
                         $this->unGet(1);
                     } elseif ($char == "#") {
+                        //Comments
                         ++$commentsCount;
                         $state = 2;
                     } elseif ($char == "@" && !$gettingValue) {
+                        //Separator
                         $this->unGet(2);
                         if (ctype_space(fgetc(STDIN))) {
                             fwrite(STDERR, "ERROR: Spaces before separator are not allowed!\n");
@@ -113,8 +124,8 @@ class Scanner
 
                         return [SEPARATOR, "@"];
                     } else {
+                        //Something else
                         $string = $char;
-
                         $ignore = false;
 
                         while (!ctype_space($char = fgetc(STDIN))) {
@@ -150,6 +161,7 @@ class Scanner
                             $this->unGet(1);
                         }
 
+                        //Check if token is instruction
                         switch (strtolower($string)) {
                             case "move":
                                 return [INST_MOVE, $string];
@@ -221,6 +233,7 @@ class Scanner
                                 return [INST_BREAK, $string];
                         }
 
+                        //Check for case sensitive cases
                         switch ($string) {
                             case "int":
                                 return [TYPE_INT, "int"];
@@ -245,6 +258,7 @@ class Scanner
                     }
                     break;
                 case 1:
+                    //Check for introductory row
                     $string = $char;
                     $ignore = false;
 
@@ -261,12 +275,14 @@ class Scanner
                     $this->unGet(1);
 
                     if (trim(strtolower($string)) != "ippcode18") {
-                        fwrite(STDERR, "ERROR: Missing .IPPcode18 header on first line!\n");
-                        exit(ERROR_CODE);
+                        //It is not introductory row token, return unknown
+                        return [UNKNOWN, "." . $string];
                     }
 
-                    return [INST_HEADER];
+                    //It is introductory row
+                    return [INST_HEADER, ""];
                 case 2:
+                    //In case of comment, just ignore everything until new line
                     while (($char = fgetc(STDIN)) != PHP_EOL) {
                         if (feof(STDIN)) {
                             break;
@@ -284,16 +300,40 @@ class Scanner
 }
 
 /**
- * Class Parse for syntactic analysis and creating XML output
+ * Parses STDIN and checks for syntax a lexical errors
  */
 class Parse
 {
+    /**
+     * @var Scanner Instance of Scanner
+     */
     private $scanner;
+
+    /**
+     * @var int Current instruction order
+     */
     private $order;
+
+    /**
+     * @var int Current instruction's argument position
+     */
     private $arg;
+
+    /**
+     * @var XMLWriter Instance of XMLWriter
+     */
     private $xml;
+
+    /**
+     * @var int Current comments count
+     */
     private $commentsCount;
 
+    /**
+     * Parse constructor
+     * Creates instances of Scanner and XMLWriter
+     * Sets default variable values and starts generating XML
+     */
     public function __construct()
     {
         $this->scanner = new Scanner;
@@ -301,6 +341,7 @@ class Parse
         $this->arg = 0;
         $this->commentsCount = 0;
 
+        //Start generating XML
         $this->xml = new XMLWriter();
         $this->xml->openMemory();
         $this->xml->setIndent(4);
@@ -311,32 +352,52 @@ class Parse
 
         $this->addXMLAtribute("language", "IPPcode18");
 
+        //Run parser
         $this->start();
 
+        //End of XML generation
         $this->xml->endElement();;
         $this->xml->endDocument();
     }
 
+    /**
+     * Returns the whole generated XML
+     * @return string Output XML
+     */
     public function getXML()
     {
         return $this->xml->outputMemory();
     }
 
+    /**
+     * Returns current instruction order
+     * @return int
+     */
     public function getInstructionsNumber()
     {
         return $this->order;
     }
 
+    /**
+     * Returns comments count
+     * @return int
+     */
     public function getCommentsCount()
     {
         return $this->commentsCount;
     }
 
+    /**
+     * Starts parsing of whole STDIN
+     */
     private function start()
     {
+        //Get first token
         $token = $this->scanner->getNextToken($this->commentsCount);
 
+        //First token must be instruction introductory header
         if ($token[0] == INST_HEADER) {
+            //Run until the end of STDIN
             while (!feof(STDIN)) {
                 $this->instruction();
             }
@@ -346,8 +407,12 @@ class Parse
         }
     }
 
+    /**
+     * Processing instruction tokens
+     */
     private function instruction()
     {
+        //Check if there is new line after last token / introductory header
         $token = $this->scanner->getNextToken($this->commentsCount);
 
         if ($token[0] != NEWLINE) {
@@ -356,7 +421,7 @@ class Parse
             exit(ERROR_CODE);
         }
 
-
+        //Get next token other than new line
         $token = $this->scanner->getNextToken($this->commentsCount);
 
         while ($token[0] == NEWLINE) {
@@ -364,6 +429,7 @@ class Parse
         }
 
         if ($token[0] >= INST_MOVE && $token[0] <= INST_BREAK) {
+            //Start parsing instructions
             $this->arg = 0;
             $this->xml->startElement("instruction");
             $this->addXMLAtribute("order", ++$this->order);
@@ -551,6 +617,10 @@ class Parse
         }
     }
 
+    /**
+     * Gets value of constants
+     * @return string value
+     */
     private function value()
     {
         $token = $this->scanner->getNextToken($this->commentsCount, true);
@@ -563,6 +633,10 @@ class Parse
         return $token[1];
     }
 
+    /**
+     * Gets variable/label name and checks it's validity
+     * @return string variable/label name
+     */
     private function name()
     {
         $token = $this->scanner->getNextToken($this->commentsCount);
@@ -584,10 +658,14 @@ class Parse
         return $token[1];
     }
 
-    private
-    function frame()
+    /**
+     * Checks if next token is valid frame
+     * @return string frame
+     */
+    private function frame()
     {
         $token = $this->scanner->getNextToken($this->commentsCount);
+
         if ($token[0] >= FRAME_GLOBAL && $token[0] <= FRAME_TEMPORARY) {
             return $token[1];
         } else {
@@ -596,8 +674,11 @@ class Parse
         }
     }
 
-    private
-    function separator()
+    /**
+     * Checks if next token is separator
+     * @return string separator
+     */
+    private function separator()
     {
         $token = $this->scanner->getNextToken($this->commentsCount);
 
@@ -609,10 +690,13 @@ class Parse
         }
     }
 
-    private
-    function type()
+    /**
+     * Checks if next token is type and generates xml for it
+     */
+    private function type()
     {
         $token = $this->scanner->getNextToken($this->commentsCount);
+
         if ($token[0] >= TYPE_INT && $token[0] <= TYPE_FLOAT) {
             $this->xml->startElement("arg" . (++$this->arg));
             $this->addXMLAtribute("type", "type");
@@ -624,38 +708,50 @@ class Parse
         }
     }
 
-    private
-    function label()
+    /**
+     * Generates xml for label
+     */
+    private function label()
     {
         $name = $this->name();
+
         $this->xml->startElement("arg" . (++$this->arg));
         $this->addXMLAtribute("type", "label");
         $this->xml->text($name);
         $this->xml->endElement();
     }
 
-    private
-    function symb()
+    /**
+     * Checks if next token is valid symbol and generates xml for it
+     */
+    private function symb()
     {
         $token = $this->scanner->getNextToken($this->commentsCount);
+
+        //Symbol can be only constant or variable
         if (($token[0] >= FRAME_GLOBAL && $token[0] <= FRAME_TEMPORARY) || ($token[0] >= TYPE_INT && $token[0] <= TYPE_FLOAT)) {
             $symb = $token[1];
             $sep = $this->separator();
 
             $this->xml->startElement("arg" . (++$this->arg));
+
             if ($token[0] >= FRAME_GLOBAL && $token[0] <= FRAME_TEMPORARY) {
+                //Symbol is variable
                 $name = $this->name();
                 $this->addXMLAtribute("type", "var");
                 $this->xml->text(strtoupper($symb) . $sep . $name);
             } else {
+                //Symbol is constant
                 $name = $this->value();
                 $this->addXMLAtribute("type", $token[1]);
 
                 if ($token[0] == TYPE_STRING) {
+                    //Replace chars in string with xml entities
                     $char = array("<", ">", "&");
                     $replacement = array("&lt;", "&gt;", "&amp;");
                     str_replace($name, $replacement, $char);
                 } elseif ($token[0] == TYPE_BOOL) {
+                    //Check for valid bool value
                     if ($name != "true" && $name != "false") {
                         fwrite(STDERR, "ERROR: Wrong bool value!\n");
                         exit(ERROR_CODE);
@@ -673,6 +769,9 @@ class Parse
 
     }
 
+    /**
+     * Generates xml for variable
+     */
     private function variable()
     {
         $frame = $this->frame();
@@ -685,6 +784,11 @@ class Parse
         $this->xml->endElement();
     }
 
+    /**
+     * Generates xml attribute
+     * @param string $attribute attribute name
+     * @param string $value attribute value
+     */
     private function addXMLAtribute($attribute, $value)
     {
         $this->xml->startAttribute($attribute);
@@ -705,6 +809,7 @@ $longOptions = array(
 
 $options = getopt($shortOptions, $longOptions);
 
+//Parse parameters
 if ((empty($options) && $argc == 1) || (!empty($options) && isset($options["stats"]))) {
     $logFile = false;
     $logLoc = false;
@@ -733,8 +838,10 @@ if ((empty($options) && $argc == 1) || (!empty($options) && isset($options["stat
         exit(ERROR_PARAM);
     }
 
+    //Run parser
     $parse = new Parse;
 
+    //Log stats
     if ($logFile) {
         $content = "";
         foreach ($options as $key => $option) {
@@ -752,6 +859,7 @@ if ((empty($options) && $argc == 1) || (!empty($options) && isset($options["stat
         }
     }
 
+    //Output XML
     echo $parse->getXML();
 
     exit(0);
