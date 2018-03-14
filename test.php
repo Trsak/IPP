@@ -362,16 +362,31 @@ $testsFailed = 0;
 
 //Run tests in every specified directory
 foreach ($settings["dir"] as $directory) {
+    $isDirectory = true;
+    $files = array();
+
     //Check if directory exists
     if (!file_exists($directory) || !is_dir($directory)) {
-        fwrite(STDERR, "ERROR: Tests directory (" . $directory . ") does not exist or is not a directory!\n");
-        exit(11);
+        if (!isset($options["testlist"])) {
+            fwrite(STDERR, "ERROR: Tests directory (" . $directory . ") does not exist or is not a directory!\n");
+            exit(11);
+        } else {
+            if (pathinfo($directory, PATHINFO_EXTENSION) == ".src") {
+                fwrite(STDERR, "ERROR: " . $directory . " is not directory or .src file!\n");
+                exit(11);
+            }
+
+            $isDirectory = false;
+            $files[] = array($directory);
+        }
     }
 
     //Create Iterators to find .src files iin given locations
-    $dir = new RecursiveDirectoryIterator($directory);
-    $ite = new RecursiveIteratorIterator($dir);
-    $files = new RegexIterator(($settings["recursively"] === true) ? $ite : $dir, "/^.*\.(src)$/", RegexIterator::GET_MATCH);
+    if ($isDirectory) {
+        $dir = new RecursiveDirectoryIterator($directory);
+        $ite = new RecursiveIteratorIterator($dir);
+        $files = new RegexIterator(($settings["recursively"] === true) ? $ite : $dir, "/^.*\.(src)$/", RegexIterator::GET_MATCH);
+    }
 
     //Loop through all .src files
     foreach ($files as $file) {
