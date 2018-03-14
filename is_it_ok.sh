@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
-# pouziti:   is_it_ok.sh xlogin01-XYZ.zip testdir
+# pouziti:   is_it_ok.sh xlogin01-XYZ.zip testdir [task-num]
 #  
 #   - POZOR: obsah adresare zadaneho druhym parametrem bude po dotazu VYMAZAN!
 #   - rozbali archiv studenta xlogin01-XYZ.zip do adresare testdir a overi formalni pozadavky pro odevzdani projektu IPP
+#   - cislo ulohy (task-num) je nepovinny parametr (mozne hodnoty: 1 nebo 2) 
 #   - nasledne vyzkousi spusteni
 #   - detaily prubehu jsou logovany do souboru is_it_ok.log v adresari testdir
 
 # Autor: Zbynek Krivka
-# Verze: 1.5 (2018-03-05)
+# Verze: 1.5.1 (2018-03-12)
 #  2012-04-03  Zverejnena prvni verze
 #  2012-04-09  Pridana kontrola tretiho radku (prispel Vilem Jenis) a maximalni velikosti archivu
 #  2012-04-26  Oprava povolenych pripon archivu, aby to odpovidalo pozadavkum v terminu ve WIS
@@ -20,6 +21,7 @@
 #  2017-02-06  Zrusen pozadavek na metainformace na tretim radku skriptu, zakomentovan kontrolni kod
 #  2017-03-04  Aktualizace prikazu pro PHP 5.6 a Python 3.6 na Merlinovi (upozornil ¼uboš Hlipala)
 #  2018-03-05  Zruseno deleni projektu na ulohy, nyni 1. a 2. uloha
+#  2018-03-12  Kontrola existence prikazu dos2unix, nepovinny parametr task-num (umi kontrolovat ulohu 1 nebo 2), barevne vypisy
 
 LOG="is_it_ok.log"
 MAX_ARCHIVE_SIZE=1100000
@@ -28,9 +30,42 @@ PARSESCRIPT="parse.php"
 INTERPRETSCRIPT="interpret.py"
 TESTSCRIPT="test.php"
 
-# Test validity of argument number
-if [[ $# -ne 2 ]]; then
-  echo "ERROR: Missing arguments or too much arguments!"
+# Konstanty barev
+REDCOLOR='\033[1;31m'
+GREENCOLOR='\033[1;32m'
+BLUECOLOR='\033[1;34m'
+NOCOLOR='\033[0m' # No Color
+
+# Funkce: vypis barevny text
+function echo_color () { # $1=color $2=text [$3=-n]
+  COLOR=$NOCOLOR
+  if [[ $1 == "red" ]]; then
+    COLOR=$REDCOLOR
+  elif [[ $1 == "blue" ]]; then
+    COLOR=$BLUECOLOR
+  elif [[ $1 == "green" ]]; then
+    COLOR=$GREENCOLOR
+  fi
+  echo -e $3 "$COLOR$2$NOCOLOR"
+}
+
+# Funkce: patri polozka do pole? (ze seznamu hodnot $* (parametry) hleda prvni parametr v ostatnich parametrech)
+function member ()
+{
+  local -a arr=($*)
+  for i in $(seq 1 $#); 
+  do
+    if [ "${arr[$i]}" = "$1" ];
+    then
+      return 0
+    fi
+  done  
+  return 1
+}
+
+#   Pri nedostatku parametru (povinnych) vypis napovedu
+if [[ $# -lt 2 ]]; then
+  echo_color red "ERROR: Missing arguments or too much arguments!"
   echo "Usage: $0  ARCHIVE  TESTDIR"
   echo "       This script checks formal requirements for archive with solution of $COURSE project."
   echo "         ARCHIVE - the filename of archive to check"
@@ -38,7 +73,27 @@ if [[ $# -ne 2 ]]; then
   exit 2
 fi
 
-# extrakce archivu
+declare -i ERRORS=0
+declare -a REQUIRED_SCRIPTS=( $PARSESCRIPT $INTERPRETSCRIPT $TESTSCRIPT )
+declare -a NON_REQUIRED_SCRIPTS=()
+
+#   Zpracovani nepovinneho parametru task-num
+declare -i TASK=0
+if [[ -n $3 ]]; then
+  TASK=$3
+  if [[ $TASK -eq 1 ]]; then
+    REQUIRED_SCRIPTS=( $PARSESCRIPT )
+    NON_REQUIRED_SCRIPTS=( $INTERPRETSCRIPT $TESTSCRIPT )
+  elif [[ $TASK -eq 2 ]]; then
+    REQUIRED_SCRIPTS=( $INTERPRETSCRIPT $TESTSCRIPT )
+    NON_REQUIRED_SCRIPTS=( $PARSESCRIPT )
+  else
+    echo_color red "ERROR (Unsupported task number: $3 not in {1, 2})"
+    exit 1
+  fi 
+fi
+
+#   Extrakce archivu
 function unpack_archive () {
   local ext=`echo $1 | cut -d . -f 2,3`
   echo -n "Archive extraction: "
@@ -54,12 +109,12 @@ function unpack_archive () {
     RETCODE=$? 
 	fi
   if [[ $RETCODE -eq 0 ]]; then
-    echo "OK"
+    echo_color green OK
   elif [[ $RETCODE -eq 100 ]]; then
-    echo "ERROR (unsupported extension)"
+    echo_color red "ERROR (unsupported extension)"
     exit 1
   else
-    echo "ERROR (code $RETCODE)"
+    echo_color red "ERROR (code $RETCODE)"
     exit 1
   fi
 } 
@@ -70,7 +125,8 @@ if [[ -d $2 ]]; then
   if [[ $RESP = "y" ]]; then
     rm -rf $2 2>/dev/null
   else
-    echo "ERROR: User cancelled rewriting of existing directory."
+    echo_color red "ERROR:" -n
+    echo "User cancelled rewriting of existing directory."
     exit 1
   fi
 fi
@@ -82,9 +138,9 @@ cp $1 $2 2>/dev/null
 echo -n "Testing on Merlin: "
 HN=`hostname`
 if [[ $HN = "merlin.fit.vutbr.cz" ]]; then
-  echo "Yes"
+  echo_color green "Yes"
 else
-  echo "No"
+  echo_color blue "No"
 fi
 
 #   Kontrola jmena archivu
@@ -94,36 +150,46 @@ ARCHIVE=`basename $1`
 NAME=`echo $ARCHIVE | cut -d . -f 1 | egrep "^x[a-z]{5}[0-9][0-9a-z]$"`
 echo -n "Archive name ($ARCHIVE): "
 if [[ -n $NAME ]]; then
-  echo "OK"
+  echo_color green "OK"
 else
-  echo "ERROR (the name $NAME does not correspond to a login)"
+  echo_color red "ERROR (the name $NAME does not correspond to a login)"
+  let ERROR=ERROR+1
 fi
 
 #   Kontrola velikosti archivu
 echo -n "Checking size of $ARCHIVE: "
 ARCHIVE_SIZE=`du --bytes $ARCHIVE | cut -f 1`
 if [[ ${ARCHIVE_SIZE} -ge ${MAX_ARCHIVE_SIZE} ]]; then 
-  echo "Too big (${ARCHIVE_SIZE} bytes > ${MAX_ARCHIVE_SIZE} bytes)"; 
+  echo_color red "ERROR (Too big (${ARCHIVE_SIZE} bytes > ${MAX_ARCHIVE_SIZE} bytes)"
+  let ERROR=ERROR+1
 else 
-  echo "OK"; 
+  echo_color green "OK" 
 fi
 
 #   Extrahovat do testdir
 unpack_archive ${ARCHIVE}
 
-
 #   Dokumentace
 echo -n "Searching for doc.pdf: "
 if [[ -f "doc.pdf" ]]; then
-  echo "OK"
+  echo_color green "OK"
 else
-  echo "ERROR (not found; required for 2nd task only!)"
-fi  
+  if [[ $TASK -eq 0 ]]; then
+    echo_color red "ERROR (not found; required for 2nd task only!)"
+    let ERROR=ERROR+1
+  elif [[ $TASK -eq 2 ]]; then
+    echo_color red "ERROR (not found; required for this task!)"
+    let ERROR=ERROR+1
+  else
+    echo_color blue "Not found (not required by task $TASK)"  
+  fi
+fi
 
+#   Spusteni skriptu
 echo "Scripts execution test (--help): "
-#   Spusteni skriptu 
-for SCRIPT in $PARSESCRIPT $INTERPRETSCRIPT $TESTSCRIPT; do
+for SCRIPT in "${REQUIRED_SCRIPTS[@]}" "${NON_REQUIRED_SCRIPTS[@]}"; do
   if [[ -f $SCRIPT ]]; then
+    echo -n "  Checking $SCRIPT: "
     EXT=`echo $SCRIPT | cut -d . -f 2`
     if [[ "$EXT" = "php" ]]; then
       php5.6 $SCRIPT --help >> $LOG 2>&1
@@ -132,20 +198,31 @@ for SCRIPT in $PARSESCRIPT $INTERPRETSCRIPT $TESTSCRIPT; do
       python3 $SCRIPT --help >> $LOG 2>&1
       RETCODE=$?		 
 	  else
-      echo "INTERNAL ERROR: Unknown script extension."
+      echo_color red "INTERNAL ERROR: Unknown script extension."
       exit 3
 	  fi
     if [[ $RETCODE -eq 0 ]]; then
-      echo "  $SCRIPT: OK"
+      #echo -n "  $SCRIPT: "
+      echo_color green "OK"
     else
-      echo "  $SCRIPT: ERROR (returns code $RETCODE)"
-      exit 1
+      #echo -n "  $SCRIPT: "
+      echo_color red "ERROR (returns code $RETCODE)"
+      let ERROR=ERROR+1
     fi    
   else
-    if [[ "$SCRIPT" = "$PARSESCRIPT" ]]; then
-      echo "  $SCRIPT: ERROR (not found; required for 1st task only!)" 
+    if [[ $TASK -eq 0 ]]; then
+      if [[ "$SCRIPT" = "$PARSESCRIPT" ]]; then
+        echo_color blue "  $SCRIPT: ERROR (not found; required for 1st task only!)"
+        let ERROR=ERROR+1 
+      else
+        echo_color blue "  $SCRIPT: ERROR (not found; required for 2nd task only!)"
+        let ERROR=ERROR+1
+      fi
     else
-      echo "  $SCRIPT: ERROR (not found; required for 2nd task only!)"
+      if ( member $SCRIPT ${REQUIRED_SCRIPTS[@]} ); then
+        echo_color red "  $SCRIPT: ERROR (not found; required for task $TASK!)"
+        let ERROR=ERROR+1
+      fi      
     fi  
   fi
 done
@@ -153,20 +230,26 @@ done
 #   Kontrola rozsireni
 echo -n "Presence of file rozsireni (optional): "
 if [[ -f rozsireni ]]; then
-  echo "Yes"
+  echo_color green "Yes"
   echo -n "Unix end of lines in rozsireni: "
-  dos2unix -n rozsireni rozsireni.lf >> $LOG 2>&1
+  if command -v dos2unix >/dev/null 2>&1; then
+      dos2unix -n rozsireni rozsireni.lf >> $LOG 2>&1
+  else
+      tr -d '\r' < rozsireni > rozsireni.lf 2>&1
+  fi
   diff rozsireni rozsireni.lf >> $LOG 2>&1
   RETCODE=$?
   if [[ $RETCODE = "0" ]]; then
     UNKNOWN=`cat rozsireni | grep -v -E -e "^(STATP|FLOAT|STACK|STATI|FILES)$" | wc -l`
     if [[ $UNKNOWN = "0" ]]; then
-      echo "OK"
+      echo_color green "OK" 
     else
-      echo "ERROR (Unknown bonus identifier or redundant empty line)"
+      echo_color red "ERROR (Unknown bonus identifier or redundant empty line)"
+      let ERROR=ERROR+1
     fi
   else
-    echo "ERROR (CRLFs)"
+    echo_color red "ERROR (CRLFs)"
+    let ERROR=ERROR+1
   fi
 else
   echo "No"
@@ -174,7 +257,15 @@ fi
 
 #   Kontrola adresare __MACOSX
 if [[ -d __MACOSX ]]; then
-  echo "Archive ($ARCHIVE) should not contain __MACOSX directory!"
+  echo_color blue "Archive ($ARCHIVE) should not contain __MACOSX directory!"
+  let ERROR=ERROR+1
 fi
 
-echo "ALL CHECKS COMPLETED!"
+echo -n "ALL CHECKS COMPLETED"
+if [[ $ERROR -eq 0 ]]; then
+  echo_color green " WITHOUT ERRORS!"
+elif [[ $ERROR -eq 1 ]]; then
+  echo_color red " WITH $ERROR ERROR!"    
+else
+  echo_color red " WITH $ERROR ERRORS!"
+fi
