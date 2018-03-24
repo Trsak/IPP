@@ -103,7 +103,7 @@ class Test
         fseek($temp, 0);
         $tempData = stream_get_meta_data($temp);
 
-        exec("python3.6 " . $this->settings["interpret"] . " --source=\"" . $tempData["uri"] . "\" 2> /dev/null", $outInterpret, $exitCode);
+        exec("python3.6 " . $this->settings["interpret"] . " --source=\"" . $tempData["uri"] . "\" < " . $this->files["in"] . " 2> /dev/null", $outInterpret, $exitCode);
         file_put_contents($tempData["uri"], $outInterpret);
 
         //Check if parse.php interpret with exit code 0
@@ -287,7 +287,7 @@ $time_start = microtime(true);
 $settings = array(
     "dir" => array(getcwd()),
     "recursively" => false,
-    "match" => ".*",
+    "match" => "/.*/",
     "parser" => getcwd() . "/parse.php",
     "interpret" => getcwd() . "/interpret.py"
 );
