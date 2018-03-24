@@ -78,7 +78,7 @@ try:
             arg_num += 1
 
         interpret.add_instruction(opcode, args_list)
-
+    interpret.run()
 except FileNotFoundError:
     sys.stderr.write("ERROR: Can not open source file!\n")
     exit(11)

@@ -1,3 +1,6 @@
+from frames import Frames
+from variables import *
+
 INSTRUCTIONS = ["MOVE", "CREATEFRAME", "PUSHFRAME", "POPFRAME", "DEFVAR", "CALL", "RETURN", "PUSHS", "POPS", "ADD",
                 "SUB", "MUL", "IDIV", "LT", "GT", "EQ", "AND", "OR", "NOT", "INT2CHAR", "STRI2INT", "INT2FLOAT",
                 "FLOAT2INT", "READ", "WRITE", "CONCAT", "STRLEN", "GETCHAR", "SETCHAR", "TYPE", "LABEL", "JUMP",
@@ -11,6 +14,8 @@ class IPPcodeParseError(Exception):
 class InterpretFactory:
     def __init__(self):
         self.instructions = []
+        self.frames = Frames()
+        self.variables_factory = VariablesFactory(self.frames)
 
     def add_instruction(self, opcode, args):
         if opcode not in INSTRUCTIONS:
@@ -30,6 +35,7 @@ class InterpretFactory:
             elif opcode == "DEFVAR":
                 self.count_args(len(args), 1, opcode)
                 self.var(args[0])
+
             elif opcode == "CALL":
                 self.count_args(len(args), 1, opcode)
                 self.label(args[0])
@@ -158,8 +164,19 @@ class InterpretFactory:
                 self.symb(args[0])
             elif opcode == "BREAK":
                 self.count_args(len(args), 0, opcode)
+
+            self.instructions.append({"opcode": opcode, "args": args})
         except IndexError:
             raise IPPcodeParseError("missing arguments for %s instruction" % opcode)
+
+    def run(self):
+        for instruction in self.instructions:
+            if instruction["opcode"] == "DEFVAR":
+                self.variables_factory.def_var(instruction["args"][0])
+            elif instruction["opcode"] == "MOVE":
+                self.variables_factory.move_to_var(instruction["args"][0], instruction["args"][1])
+            elif instruction["opcode"] == "WRITE":
+                self.variables_factory.print_var(instruction["args"][0])
 
     @staticmethod
     def count_args(actual, needed, opcode):
