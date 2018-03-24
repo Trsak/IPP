@@ -393,7 +393,7 @@ foreach ($settings["dir"] as $directory) {
         $fileName = substr(basename($file[0]), 0, -4);
 
         //Check file name validity with regexp
-        if (@preg_match("/" . $settings["match"] . "/", $fileName)) {
+        if (@preg_match($settings["match"], $fileName)) {
             //Check if same test was not already runned
             if (!in_array($file[0], $alreadyTestedFiles)) {
                 //Prepare, run and add test to array
