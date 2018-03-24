@@ -156,7 +156,7 @@ class Test
             fseek($temp, 0);
             $tempData = stream_get_meta_data($temp);
 
-            exec("python3.6 " . $this->settings["interpret"] . " --source=" . $tempData["uri"] . " 2> /dev/null", $null, $exitCode);
+            exec("python3.6 " . $this->settings["interpret"] . " --source=" . $tempData["uri"] . " < " . $this->files["in"] . " 2> /dev/null", $null, $exitCode);
 
             if ($exitCode == $this->data["exitcode"]) {
                 $result[0] = true;
