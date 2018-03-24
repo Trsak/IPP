@@ -416,7 +416,6 @@ class Parse
         $token = $this->scanner->getNextToken($this->commentsCount);
 
         if ($token[0] != NEWLINE) {
-            var_dump($token);
             fwrite(STDERR, "ERROR: Every instruction must be on it's own line!\n");
             exit(ERROR_CODE);
         }

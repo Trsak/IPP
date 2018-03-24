@@ -77,7 +77,7 @@ try:
             args_list.append([arg.attrib["type"], arg.text])
             arg_num += 1
 
-        interpret.add_instruction(opcode, args_list)
+        interpret.add_instruction(opcode, args_list, order)
     interpret.run()
 except FileNotFoundError:
     sys.stderr.write("ERROR: Can not open source file!\n")
