@@ -23,6 +23,7 @@ class InterpretFactory:
     def __init__(self):
         self.instructions = []
         self.labels = []
+        self.calls = []
         self.names_pattern = re.compile("[^A-ZÁ-Ža-zá-ž0-9\-\*\$%_&]")
         self.frames = Frames()
         self.variables_factory = VariablesFactory(self.frames)
@@ -180,10 +181,9 @@ class InterpretFactory:
             raise IPPcodeParseError("missing arguments for %s instruction" % opcode)
 
     def run(self):
-        # TODO: Break, READ, CONCAT, STRLEN, GETCHAR, SETCHAR, PUSHS, POPS, RETURN, CALL, POPFRAME
-        # TODO: PUSHFRAME, CREATEFRAME
         inst_len = len(self.instructions)
         current_inst = 0
+        total_inst = 0
 
         while current_inst < inst_len:
             if self.instructions[current_inst]["opcode"] == "DEFVAR":
@@ -191,6 +191,24 @@ class InterpretFactory:
             elif self.instructions[current_inst]["opcode"] == "MOVE":
                 self.variables_factory.move_to_var(self.instructions[current_inst]["args"][0],
                                                    self.instructions[current_inst]["args"][1])
+            elif self.instructions[current_inst]["opcode"] == "CREATEFRAME":
+                self.frames.temporary_frame = []
+            elif self.instructions[current_inst]["opcode"] == "PUSHFRAME":
+                self.frames.push_frame()
+            elif self.instructions[current_inst]["opcode"] == "POPFRAME":
+                self.frames.pop_frame()
+            elif self.instructions[current_inst]["opcode"] == "CALL":
+                self.calls.append(current_inst)
+                current_inst = self.jump_to_label(self.instructions[current_inst]["args"][0]) - 1
+            elif self.instructions[current_inst]["opcode"] == "RETURN":
+                if len(self.calls) == 0:
+                    sys.stderr.write("ERROR: CALL stack is empty!\n")
+                    exit(55)
+                current_inst = self.calls.pop()
+            elif self.instructions[current_inst]["opcode"] == "PUSHS":
+                self.variables_factory.push_stack(self.instructions[current_inst]["args"][0])
+            elif self.instructions[current_inst]["opcode"] == "POPS":
+                self.variables_factory.pop_stack(self.instructions[current_inst]["args"][0])
             elif self.instructions[current_inst]["opcode"] == "WRITE":
                 self.variables_factory.print_var(self.instructions[current_inst]["args"][0])
             elif self.instructions[current_inst]["opcode"] == "DPRINT":
@@ -255,8 +273,32 @@ class InterpretFactory:
                 if (self.variables_factory.is_not_equal(self.instructions[current_inst]["args"][1],
                                                         self.instructions[current_inst]["args"][2])):
                     current_inst = self.jump_to_label(self.instructions[current_inst]["args"][0]) - 1
+            elif self.instructions[current_inst]["opcode"] == "CONCAT":
+                self.variables_factory.concat_strings(self.instructions[current_inst]["args"][0],
+                                                      self.instructions[current_inst]["args"][1],
+                                                      self.instructions[current_inst]["args"][2])
+            elif self.instructions[current_inst]["opcode"] == "STRLEN":
+                self.variables_factory.len_string(self.instructions[current_inst]["args"][0],
+                                                  self.instructions[current_inst]["args"][1])
+            elif self.instructions[current_inst]["opcode"] == "GETCHAR":
+                self.variables_factory.get_char(self.instructions[current_inst]["args"][0],
+                                                self.instructions[current_inst]["args"][1],
+                                                self.instructions[current_inst]["args"][2])
+            elif self.instructions[current_inst]["opcode"] == "SETCHAR":
+                self.variables_factory.set_char(self.instructions[current_inst]["args"][0],
+                                                self.instructions[current_inst]["args"][1],
+                                                self.instructions[current_inst]["args"][2])
+            elif self.instructions[current_inst]["opcode"] == "READ":
+                self.variables_factory.read_var(self.instructions[current_inst]["args"][0],
+                                                self.instructions[current_inst]["args"][1])
+            elif self.instructions[current_inst]["opcode"] == "BREAK":
+                sys.stderr.write("--------- DEBUG INFO START ---------\n")
+                sys.stderr.write("Instrictions interpreted: %d\n" % total_inst)
+                sys.stderr.write("Current instruction number: %d\n" % int(current_inst + 1))
+                sys.stderr.write("---------- DEBUG INFO END ----------\n")
 
             current_inst += 1
+            total_inst += 1
 
     @staticmethod
     def count_args(actual, needed, opcode):
@@ -292,6 +334,9 @@ class InterpretFactory:
             except ValueError:
                 raise IPPcodeParseError("wrong float literal")
         elif arg[0] == "string":
+            if arg[1] is None:
+                arg[1] = ""
+
             if " " in arg[1]:
                 raise IPPcodeParseError("found whitespace in string literal")
             elif "#" in arg[1]:
@@ -349,4 +394,4 @@ class InterpretFactory:
             sys.stderr.write("ERROR: Label %s not found!\n" % arg[1])
             exit(52)
         else:
-            return label[1]
+            return label[1] - 1

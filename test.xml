@@ -1,50 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<program language="IPPcode18" name="test" description="dava">
- <instruction order="1" opcode="DEFVAR">
-  <arg1 type="var">GF@fa</arg1>
- </instruction>
- <instruction order="2" opcode="JUMP">
-  <arg1 type="label">rea</arg1>
- </instruction>
- <instruction order="3" opcode="MOVE">
-  <arg1 type="var">GF@fa</arg1>
-  <arg2 type="int">8</arg2>
- </instruction>
- <instruction order="4" opcode="DEFVAR">
-  <arg1 type="var">GF@faa</arg1>
- </instruction>
- <instruction order="5" opcode="MOVE">
-  <arg1 type="var">GF@faa</arg1>
-  <arg2 type="int">5</arg2>
- </instruction>
- <instruction order="6" opcode="DEFVAR">
-  <arg1 type="var">GF@faaa</arg1>
- </instruction>
- <instruction order="7" opcode="MOVE">
-  <arg1 type="var">GF@faaa</arg1>
-  <arg2 type="bool">true</arg2>
- </instruction>
- <instruction order="8" opcode="WRITE">
-  <arg1 type="var">GF@faaa</arg1>
- </instruction>
- <instruction order="9" opcode="TYPE">
-  <arg1 type="var">GF@faaa</arg1>
-  <arg2 type="var">GF@faaa</arg2>
- </instruction>
- <instruction order="10" opcode="WRITE">
-  <arg1 type="var">GF@faaa</arg1>
- </instruction>
- <instruction order="11" opcode="DEFVAR">
-  <arg1 type="var">GF@faaaaaaa</arg1>
- </instruction>
- <instruction order="12" opcode="TYPE">
-  <arg1 type="var">GF@faaaaaaa</arg1>
-  <arg2 type="var">GF@faaaaaaa</arg2>
- </instruction>
- <instruction order="13" opcode="WRITE">
-  <arg1 type="var">GF@faaaaaaa</arg1>
- </instruction>
- <instruction order="14" opcode="LABEL">
-  <arg1 type="label">rea</arg1>
- </instruction>
+<program language="IPPcode18">
+    <instruction order="1" opcode="DEFVAR">
+        <arg1 type="var">GF@counter</arg1>
+    </instruction>
+    <instruction order="2" opcode="MOVE">
+        <arg1 type="var">GF@counter</arg1>
+        <arg2 type="string"></arg2>
+    </instruction>
+    <instruction order="3" opcode="LABEL">
+        <arg1 type="label">while</arg1>
+    </instruction>
+    <instruction order="4" opcode="JUMPIFEQ">
+        <arg1 type="label">end</arg1>
+        <arg2 type="var">GF@counter</arg2>
+        <arg3 type="string">aaa</arg3>
+    </instruction>
+    <instruction order="5" opcode="WRITE">
+        <arg1 type="string">counter\032obsahuje\032</arg1>
+    </instruction>
+    <instruction order="6" opcode="WRITE">
+        <arg1 type="var">GF@counter</arg1>
+    </instruction>
+    <instruction order="7" opcode="WRITE">
+        <arg1 type="string">\010</arg1>
+    </instruction>
+    <instruction order="8" opcode="CONCAT">
+        <arg1 type="var">GF@counter</arg1>
+        <arg2 type="var">GF@counter</arg2>
+        <arg3 type="string">a</arg3>
+    </instruction>
+    <instruction order="9" opcode="JUMP">
+        <arg1 type="label">while</arg1>
+    </instruction>
+    <instruction order="10" opcode="LABEL">
+        <arg1 type="label">end</arg1>
+    </instruction>
+    <instruction order="11" opcode="READ">
+        <arg1 type="var">GF@counter</arg1>
+        <arg2 type="type">string</arg2>
+    </instruction>
+    <instruction order="12" opcode="BREAK">
+    </instruction>
+    <instruction order="13" opcode="WRITE">
+        <arg1 type="var">GF@counter</arg1>
+    </instruction>
 </program>
