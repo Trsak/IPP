@@ -6,6 +6,9 @@ import interpret_factory as IFactory
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument("--help", action="store_true")
 parser.add_argument("--source")
+parser.add_argument("--stats")
+parser.add_argument("--insts", action="store_true")
+parser.add_argument("--vars", action="store_true")
 args = parser.parse_args()
 
 if args.help:
@@ -16,6 +19,10 @@ if args.help:
     print("-------- Program help --------")
     print("Program loads XML file from --source parametr and interprets it.")
     exit(0)
+
+if (args.insts or args.vars) and not args.stats:
+    sys.stderr.write("ERROR: Missing --stats parametr!\n")
+    exit(10)
 
 if not args.source:
     sys.stderr.write("ERROR: Missing --source parametr!\n")
@@ -79,6 +86,24 @@ try:
 
         interpret.add_instruction(opcode, args_list, order)
     interpret.run()
+
+    if args.stats:
+        try:
+            stats = ""
+            for argument in sys.argv:
+                if argument == "--vars":
+                    stats += "%d\n" % interpret.total_inst
+                elif argument == "--insts":
+                    stats += "%d\n"
+
+            with open(args.stats, "w") as f:
+                f.seek(0)
+                f.write(stats)
+                f.truncate()
+        except IOError:
+            sys.stderr.write("ERROR: Could not open stats file!\n")
+            exit(12)
+
 except FileNotFoundError:
     sys.stderr.write("ERROR: Can not open source file!\n")
     exit(11)

@@ -44,6 +44,9 @@ class VariablesFactory:
             variable.variable_type = symb_var.variable_type
 
     def get_var(self, var):
+        if var == "stack":
+            return Variable("stack")
+
         frame, name = var[1].split("@")
 
         if frame == "GF":
@@ -70,9 +73,14 @@ class VariablesFactory:
             print(value)
 
     def aritmetic_operation(self, var, symb1, symb2, operation):
-        variable = self.get_var(var)
-        symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
-        symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
+        if var is None and symb1 is None and symb2 is None:
+            variable = self.get_var("stack")
+            symb2_type, symb2_value = self.pop_data_stack()
+            symb1_type, symb1_value = self.pop_data_stack()
+        else:
+            variable = self.get_var(var)
+            symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
+            symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
 
         if symb1_type != symb2_type or (symb1_type != TYPE_FLOAT and symb1_type != TYPE_INT):
             sys.stderr.write("ERROR: Aritmetic instruction requires two float or int types!\n")
@@ -104,10 +112,18 @@ class VariablesFactory:
                 sys.stderr.write("ERROR: IDIV division by zero!\n")
                 exit(57)
 
+        if var is None and symb1 is None and symb2 is None:
+            self.data_stack.append([variable.variable_type, variable.value])
+
     def relation_operator(self, var, symb1, symb2, operator):
-        variable = self.get_var(var)
-        symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
-        symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
+        if var is None and symb1 is None and symb2 is None:
+            variable = self.get_var("stack")
+            symb2_type, symb2_value = self.pop_data_stack()
+            symb1_type, symb1_value = self.pop_data_stack()
+        else:
+            variable = self.get_var(var)
+            symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
+            symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
 
         if symb1_type != symb2_type:
             sys.stderr.write("ERROR: Both symbols must have same type for relation operators use!\n")
@@ -121,10 +137,22 @@ class VariablesFactory:
         elif operator == "eq":
             variable.value = str(symb1_value == symb2_value).lower()
 
+        if var is None and symb1 is None and symb2 is None:
+            self.data_stack.append([variable.variable_type, variable.value])
+
     def bool_operator(self, var, symb1, symb2, operator):
-        variable = self.get_var(var)
-        symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
-        symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
+        if var is None and symb1 is None and symb2 is None:
+            variable = self.get_var("stack")
+            symb2_type, symb2_value = self.pop_data_stack()
+
+            if operator == "not":
+                symb1_type, symb1_value = symb2_type, symb2_value
+            else:
+                symb1_type, symb1_value = self.pop_data_stack()
+        else:
+            variable = self.get_var(var)
+            symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
+            symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
 
         if symb1_type != symb2_type or symb1_type != TYPE_BOOL:
             sys.stderr.write("ERROR: Bool instructions can only have two symbols with bool types!\n")
@@ -147,6 +175,9 @@ class VariablesFactory:
             variable.value = str(symb1_actual or symb2_actual).lower()
         elif operator == "not":
             variable.value = str(not symb1_actual).lower()
+
+        if var is None and symb1 is None and symb2 is None:
+            self.data_stack.append([variable.variable_type, variable.value])
 
     def get_symbol_type_and_value(self, symb):
         if symb[0] == "var":
@@ -178,8 +209,12 @@ class VariablesFactory:
             variable.value = ""
 
     def int_to_char(self, var, symb):
-        variable = self.get_var(var)
-        symb_type, symb_value = self.get_symbol_type_and_value(symb)
+        if var is None and symb is None:
+            variable = self.get_var("stack")
+            symb_type, symb_value = self.pop_data_stack()
+        else:
+            variable = self.get_var(var)
+            symb_type, symb_value = self.get_symbol_type_and_value(symb)
 
         if symb_type != TYPE_INT:
             sys.stderr.write("ERROR: INT2CHAR requires symbol with int type!\n")
@@ -192,10 +227,18 @@ class VariablesFactory:
             sys.stderr.write("ERROR: INT2CHAR requires symbol with valid ordinary char value in UNICODE!\n")
             exit(58)
 
+        if var is None and symb is None:
+            self.data_stack.append([variable.variable_type, variable.value])
+
     def stri_to_int(self, var, symb1, symb2):
-        variable = self.get_var(var)
-        symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
-        symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
+        if var is None and symb1 is None and symb2 is None:
+            variable = self.get_var("stack")
+            symb2_type, symb2_value = self.pop_data_stack()
+            symb1_type, symb1_value = self.pop_data_stack()
+        else:
+            variable = self.get_var(var)
+            symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
+            symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
 
         if symb1_type != TYPE_STRING or symb2_type != TYPE_INT:
             sys.stderr.write(
@@ -209,9 +252,16 @@ class VariablesFactory:
             sys.stderr.write("ERROR: STRI2INT string out of range!\n")
             exit(58)
 
+        if var is None and symb1 is None and symb2 is None:
+            self.data_stack.append([variable.variable_type, variable.value])
+
     def is_equal(self, symb1, symb2):
-        symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
-        symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
+        if symb1 is None and symb2 is None:
+            symb2_type, symb2_value = self.pop_data_stack()
+            symb1_type, symb1_value = self.pop_data_stack()
+        else:
+            symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
+            symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
 
         if symb1_type != symb2_type:
             sys.stderr.write("ERROR: Both symbols in JUMPIFEQ must be same type!\n")
@@ -220,8 +270,12 @@ class VariablesFactory:
         return symb1_value == symb2_value
 
     def is_not_equal(self, symb1, symb2):
-        symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
-        symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
+        if symb1 is None and symb2 is None:
+            symb2_type, symb2_value = self.pop_data_stack()
+            symb1_type, symb1_value = self.pop_data_stack()
+        else:
+            symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
+            symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
 
         if symb1_type != symb2_type:
             sys.stderr.write("ERROR: Both symbols in JUMPIFNEQ must be same type!\n")
@@ -229,17 +283,23 @@ class VariablesFactory:
 
         return symb1_value != symb2_value
 
+    def clear_stack(self):
+        self.data_stack = []
+
     def push_stack(self, symb):
         symb_type, symb_value = self.get_symbol_type_and_value(symb)
         self.data_stack.append([symb_type, symb_value])
 
     def pop_stack(self, var):
+        variable = self.get_var(var)
+        variable.variable_type, variable.value = self.pop_data_stack()
+
+    def pop_data_stack(self):
         if len(self.data_stack) == 0:
             sys.stderr.write("ERROR: Data stack is empty!\n")
             exit(56)
 
-        variable = self.get_var(var)
-        variable.variable_type, variable.value = self.data_stack.pop()
+        return self.data_stack.pop()
 
     def concat_strings(self, var, symb1, symb2):
         variable = self.get_var(var)

@@ -10,7 +10,8 @@ TYPES = ["bool", "int", "string", "float"]
 INSTRUCTIONS = ["MOVE", "CREATEFRAME", "PUSHFRAME", "POPFRAME", "DEFVAR", "CALL", "RETURN", "PUSHS", "POPS", "ADD",
                 "SUB", "MUL", "IDIV", "DIV", "LT", "GT", "EQ", "AND", "OR", "NOT", "INT2CHAR", "STRI2INT", "INT2FLOAT",
                 "FLOAT2INT", "READ", "WRITE", "CONCAT", "STRLEN", "GETCHAR", "SETCHAR", "TYPE", "LABEL", "JUMP",
-                "JUMPIFEQ", "JUMPIFNEQ", "DPRINT", "BREAK"]
+                "JUMPIFEQ", "JUMPIFNEQ", "DPRINT", "BREAK", "CLEARS", "ADDS", "SUBS", "MULS", "IDIVS", "LTS", "GTS",
+                "EQS", "ANDS", "ORS", "NOTS", "INT2CHARS", "STRI2INTS", "JUMPIFEQS", "JUMPIFNEQS"]
 
 
 class IPPcodeParseError(Exception):
@@ -19,6 +20,7 @@ class IPPcodeParseError(Exception):
 
 class InterpretFactory:
     def __init__(self):
+        self.total_inst = 0
         self.instructions = []
         self.labels = []
         self.calls = []
@@ -178,6 +180,38 @@ class InterpretFactory:
                 self.symb(args[0])
             elif opcode == "BREAK":
                 self.count_args(len(args), 0, opcode)
+            elif opcode == "CLEARS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "ADDS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "SUBS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "MULS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "IDIVS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "LTS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "GTS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "EQS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "ANDS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "ORS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "NOTS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "INT2CHARS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "STRI2INTS":
+                self.count_args(len(args), 0, opcode)
+            elif opcode == "JUMPIFEQS":
+                self.count_args(len(args), 1, opcode)
+                self.label(args[0])
+            elif opcode == "JUMPIFNEQS":
+                self.count_args(len(args), 1, opcode)
+                self.label(args[0])
 
             self.instructions.append({"opcode": opcode, "args": args})
         except IndexError:
@@ -186,7 +220,6 @@ class InterpretFactory:
     def run(self):
         inst_len = len(self.instructions)
         current_inst = 0
-        total_inst = 0
 
         while current_inst < inst_len:
             if self.instructions[current_inst]["opcode"] == "DEFVAR":
@@ -210,6 +243,8 @@ class InterpretFactory:
                 current_inst = self.calls.pop()
             elif self.instructions[current_inst]["opcode"] == "PUSHS":
                 self.variables_factory.push_stack(self.instructions[current_inst]["args"][0])
+            elif self.instructions[current_inst]["opcode"] == "CLEARS":
+                self.variables_factory.clear_stack()
             elif self.instructions[current_inst]["opcode"] == "POPS":
                 self.variables_factory.pop_stack(self.instructions[current_inst]["args"][0])
             elif self.instructions[current_inst]["opcode"] == "WRITE":
@@ -306,12 +341,42 @@ class InterpretFactory:
                                                 self.instructions[current_inst]["args"][1])
             elif self.instructions[current_inst]["opcode"] == "BREAK":
                 sys.stderr.write("--------- DEBUG INFO START ---------\n")
-                sys.stderr.write("Instrictions interpreted: %d\n" % total_inst)
+                sys.stderr.write("Instrictions interpreted: %d\n" % self.total_inst)
                 sys.stderr.write("Current instruction number: %d\n" % int(current_inst + 1))
                 sys.stderr.write("---------- DEBUG INFO END ----------\n")
+            elif self.instructions[current_inst]["opcode"] == "ADDS":
+                self.variables_factory.aritmetic_operation(None, None, None, "add")
+            elif self.instructions[current_inst]["opcode"] == "SUBS":
+                self.variables_factory.aritmetic_operation(None, None, None, "sub")
+            elif self.instructions[current_inst]["opcode"] == "MULS":
+                self.variables_factory.aritmetic_operation(None, None, None, "mul")
+            elif self.instructions[current_inst]["opcode"] == "IDIVS":
+                self.variables_factory.aritmetic_operation(None, None, None, "idiv")
+            elif self.instructions[current_inst]["opcode"] == "LTS":
+                self.variables_factory.relation_operator(None, None, None, "lt")
+            elif self.instructions[current_inst]["opcode"] == "GTS":
+                self.variables_factory.relation_operator(None, None, None, "gt")
+            elif self.instructions[current_inst]["opcode"] == "EQS":
+                self.variables_factory.relation_operator(None, None, None, "eq")
+            elif self.instructions[current_inst]["opcode"] == "ANDS":
+                self.variables_factory.bool_operator(None, None, None, "and")
+            elif self.instructions[current_inst]["opcode"] == "NOTS":
+                self.variables_factory.bool_operator(None, None, None, "not")
+            elif self.instructions[current_inst]["opcode"] == "ORS":
+                self.variables_factory.bool_operator(None, None, None, "or")
+            elif self.instructions[current_inst]["opcode"] == "INT2CHARS":
+                self.variables_factory.int_to_char(None, None)
+            elif self.instructions[current_inst]["opcode"] == "STRI2INTS":
+                self.variables_factory.stri_to_int(None, None, None)
+            elif self.instructions[current_inst]["opcode"] == "JUMPIFEQS":
+                if self.variables_factory.is_equal(None, None):
+                    current_inst = self.jump_to_label(self.instructions[current_inst]["args"][0]) - 1
+            elif self.instructions[current_inst]["opcode"] == "JUMPIFNEQS":
+                if self.variables_factory.is_not_equal(None, None):
+                    current_inst = self.jump_to_label(self.instructions[current_inst]["args"][0]) - 1
 
             current_inst += 1
-            total_inst += 1
+            self.total_inst += 1
 
     @staticmethod
     def count_args(actual, needed, opcode):
