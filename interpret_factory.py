@@ -1,5 +1,3 @@
-import string
-
 from frames import Frames
 import re
 from variables import *
@@ -10,7 +8,7 @@ FRAMES = ["GF", "TF", "LF"]
 TYPES = ["bool", "int", "string", "float"]
 
 INSTRUCTIONS = ["MOVE", "CREATEFRAME", "PUSHFRAME", "POPFRAME", "DEFVAR", "CALL", "RETURN", "PUSHS", "POPS", "ADD",
-                "SUB", "MUL", "IDIV", "LT", "GT", "EQ", "AND", "OR", "NOT", "INT2CHAR", "STRI2INT", "INT2FLOAT",
+                "SUB", "MUL", "IDIV", "DIV", "LT", "GT", "EQ", "AND", "OR", "NOT", "INT2CHAR", "STRI2INT", "INT2FLOAT",
                 "FLOAT2INT", "READ", "WRITE", "CONCAT", "STRLEN", "GETCHAR", "SETCHAR", "TYPE", "LABEL", "JUMP",
                 "JUMPIFEQ", "JUMPIFNEQ", "DPRINT", "BREAK"]
 
@@ -73,6 +71,11 @@ class InterpretFactory:
                 self.symb(args[1])
                 self.symb(args[2])
             elif opcode == "IDIV":
+                self.count_args(len(args), 3, opcode)
+                self.var(args[0])
+                self.symb(args[1])
+                self.symb(args[2])
+            elif opcode == "DIV":
                 self.count_args(len(args), 3, opcode)
                 self.var(args[0])
                 self.symb(args[1])
@@ -229,6 +232,10 @@ class InterpretFactory:
                 self.variables_factory.aritmetic_operation(self.instructions[current_inst]["args"][0],
                                                            self.instructions[current_inst]["args"][1],
                                                            self.instructions[current_inst]["args"][2], "idiv")
+            elif self.instructions[current_inst]["opcode"] == "DIV":
+                self.variables_factory.aritmetic_operation(self.instructions[current_inst]["args"][0],
+                                                           self.instructions[current_inst]["args"][1],
+                                                           self.instructions[current_inst]["args"][2], "div")
             elif self.instructions[current_inst]["opcode"] == "LT":
                 self.variables_factory.relation_operator(self.instructions[current_inst]["args"][0],
                                                          self.instructions[current_inst]["args"][1],
@@ -260,6 +267,12 @@ class InterpretFactory:
                 self.variables_factory.stri_to_int(self.instructions[current_inst]["args"][0],
                                                    self.instructions[current_inst]["args"][1],
                                                    self.instructions[current_inst]["args"][2])
+            elif self.instructions[current_inst]["opcode"] == "INT2FLOAT":
+                self.variables_factory.int_to_float(self.instructions[current_inst]["args"][0],
+                                                    self.instructions[current_inst]["args"][1])
+            elif self.instructions[current_inst]["opcode"] == "FLOAT2INT":
+                self.variables_factory.float_to_int(self.instructions[current_inst]["args"][0],
+                                                    self.instructions[current_inst]["args"][1])
             elif self.instructions[current_inst]["opcode"] == "TYPE":
                 self.variables_factory.get_type(self.instructions[current_inst]["args"][0],
                                                 self.instructions[current_inst]["args"][1])
@@ -329,8 +342,7 @@ class InterpretFactory:
                 raise IPPcodeParseError("wrong int literal")
         elif arg[0] == "float":
             try:
-                # TODO: Hexa
-                arg[1] = float(arg[1])
+                arg[1] = float.fromhex(arg[1])
             except ValueError:
                 raise IPPcodeParseError("wrong float literal")
         elif arg[0] == "string":

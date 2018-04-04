@@ -56,9 +56,13 @@ class VariablesFactory:
     def print_var(self, symb, debug=False):
         if symb[0] == "var":
             variable = self.get_var(symb)
+            data_type = variable.variable_type
             value = variable.value
         else:
-            symb_type, value = self.get_symbol_type_and_value(symb)
+            data_type, value = self.get_symbol_type_and_value(symb)
+
+        if data_type == TYPE_FLOAT:
+            value = float.hex(value)
 
         if debug:
             sys.stderr.write(value)
@@ -76,6 +80,9 @@ class VariablesFactory:
         elif operation == "idiv" and symb1_type != TYPE_INT:
             sys.stderr.write("ERROR: IDIV instruction requires two int types!\n")
             exit(53)
+        elif operation == "div" and symb1_type != TYPE_FLOAT:
+            sys.stderr.write("ERROR: DIV instruction requires two float types!\n")
+            exit(53)
 
         variable.variable_type = symb1_type
         if operation == "add":
@@ -87,6 +94,12 @@ class VariablesFactory:
         elif operation == "idiv":
             try:
                 variable.value = symb1_value // symb2_value
+            except ZeroDivisionError:
+                sys.stderr.write("ERROR: IDIV division by zero!\n")
+                exit(57)
+        elif operation == "div":
+            try:
+                variable.value = symb1_value / symb2_value
             except ZeroDivisionError:
                 sys.stderr.write("ERROR: IDIV division by zero!\n")
                 exit(57)
@@ -295,9 +308,9 @@ class VariablesFactory:
         if var_type == "float":
             var_type = TYPE_FLOAT
             try:
-                value = float(value)
+                value = float.fromhex(value)
             except (ValueError, TypeError):
-                value = 0
+                value = float(0)
         elif var_type == "int":
             var_type = TYPE_INT
             try:
@@ -318,6 +331,28 @@ class VariablesFactory:
         variable = self.get_var(var)
         variable.variable_type = var_type
         variable.value = value
+
+    def int_to_float(self, var, symb):
+        variable = self.get_var(var)
+        symb_type, symb_value = self.get_symbol_type_and_value(symb)
+
+        if symb_type != TYPE_INT:
+            sys.stderr.write("ERROR: INT2FLOAT requires symbol with int type!\n")
+            exit(53)
+
+        variable.variable_type = TYPE_FLOAT
+        variable.value = float(symb_value)
+
+    def float_to_int(self, var, symb):
+        variable = self.get_var(var)
+        symb_type, symb_value = self.get_symbol_type_and_value(symb)
+
+        if symb_type != TYPE_FLOAT:
+            sys.stderr.write("ERROR: FLOAT2INT requires symbol with float type!\n")
+            exit(53)
+
+        variable.variable_type = TYPE_INT
+        variable.value = int(symb_value)
 
 
 class Variable:
