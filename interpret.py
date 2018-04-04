@@ -96,10 +96,10 @@ try:
                 elif argument == "--insts":
                     stats += "%d\n"
 
-            with open(args.stats, "w") as f:
-                f.seek(0)
-                f.write(stats)
-                f.truncate()
+            with open(args.stats, "w") as file:
+                file.seek(0)
+                file.write(stats)
+                file.truncate()
         except IOError:
             sys.stderr.write("ERROR: Could not open stats file!\n")
             exit(12)
