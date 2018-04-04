@@ -465,6 +465,7 @@ class InterpretFactory:
             exit(52)
 
     def jump_to_label(self, arg):
+        self.total_inst += 1
         label = self.find_label(arg[1])
 
         if not label:
