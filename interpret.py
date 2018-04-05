@@ -3,12 +3,20 @@ import sys
 import xml.etree.ElementTree as ET
 import interpret_factory as IFactory
 
-parser = argparse.ArgumentParser(add_help=False)
+
+class ArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write("ERROR: Error while parsing arguments!\n")
+        exit(10)
+
+
+parser = ArgumentParser(add_help=False)
 parser.add_argument("--help", action="store_true")
 parser.add_argument("--source")
 parser.add_argument("--stats")
 parser.add_argument("--insts", action="store_true")
 parser.add_argument("--vars", action="store_true")
+
 args = parser.parse_args()
 
 if args.help:
@@ -18,6 +26,7 @@ if args.help:
 
     print("-------- Program help --------")
     print("Program loads XML file from --source parametr and interprets it.")
+    print("Usage: python3.6 ./interpret.py --source=source_xml_file")
     exit(0)
 
 if (args.insts or args.vars) and not args.stats:
@@ -64,10 +73,11 @@ try:
             else:
                 raise ET.ParseError("instruction element can only contain opcode or order argument")
 
-        arg_num = 1
         args_list = []
         for arg in child:
-            if arg.tag != ("arg%d" % arg_num):
+            try:
+                arg_num = int(arg.tag[3:])
+            except ValueError:
                 raise ET.ParseError("wrong argument number")
 
             if "type" not in arg.attrib:
@@ -81,8 +91,13 @@ try:
             if arg.attrib["type"] not in types:
                 raise ET.ParseError("non allowed arg type")
 
-            args_list.append([arg.attrib["type"], arg.text])
-            arg_num += 1
+            while arg_num > len(args_list):
+                args_list.append(None)
+
+            args_list[arg_num - 1] = [arg.attrib["type"], arg.text]
+
+        if None in args_list:
+            raise ET.ParseError("missing arguments")
 
         interpret.add_instruction(opcode, args_list, order)
     interpret.run()

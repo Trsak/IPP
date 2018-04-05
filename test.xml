@@ -21,7 +21,11 @@
     <instruction order="7" opcode="LABEL">
         <arg1 type="label">test</arg1>
     </instruction>
-    <instruction order="8" opcode="WRITE">
-        <arg1 type="string">konec</arg1>
+    <instruction order="8" opcode="MOVE">
+        <arg2 type="string">konec</arg2>
+        <arg1 type="var">GF@counter</arg1>
+    </instruction>
+    <instruction order="9" opcode="WRITE">
+        <arg1 type="var">GF@counter</arg1>
     </instruction>
 </program>
