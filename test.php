@@ -87,9 +87,10 @@ class Test
     private function compareOutput()
     {
         $result = array();
+        $tempParse = tmpfile();
+        $tempParseData = stream_get_meta_data($tempParse);
 
-        exec("php5.6 " . $this->settings["parser"] . " < " . $this->files["src"] . " 2> /dev/null", $out, $exitCode);
-        $xml = implode("\n", $out);
+        exec("php5.6 " . $this->settings["parser"] . " < " . $this->files["src"] . " 2> /dev/null" . " > " . $tempParseData["uri"], $out, $exitCode);
 
         //Check if parse.php ended with exit code 0
         if ($exitCode != 0) {
@@ -99,12 +100,10 @@ class Test
         }
 
         $temp = tmpfile();
-        fwrite($temp, $xml);
-        fseek($temp, 0);
         $tempData = stream_get_meta_data($temp);
 
-        exec("python3.6 " . $this->settings["interpret"] . " --source=\"" . $tempData["uri"] . "\" < " . $this->files["in"] . " 2> /dev/null", $outInterpret, $exitCode);
-        file_put_contents($tempData["uri"], $outInterpret);
+        exec("python3.6 " . $this->settings["interpret"] . " --source=\"" . $tempParseData["uri"] . "\" < " . $this->files["in"] . " 2> /dev/null" . " > " . $tempData["uri"], $outInterpret, $exitCode);
+        fclose($tempParse);
 
         //Check if parse.php interpret with exit code 0
         if ($exitCode != 0) {
@@ -114,7 +113,7 @@ class Test
         }
 
         //Compare outputs
-        $diff = exec("diff " . $tempData["uri"] . " " . $this->files["out"] . " 2> /dev/null");
+        exec("diff " . $tempData["uri"] . " " . $this->files["out"] . " 2> /dev/null", $diff);
         fclose($temp);
 
         if (empty($diff)) {
@@ -149,21 +148,22 @@ class Test
             }
         } else {
             //Checks if interpret has needed exit code
-            $xml = exec("php5.6 " . $this->settings["parser"] . " < " . $this->files["src"] . " 2> /dev/null");
+            exec("php5.6 " . $this->settings["parser"] . " < " . $this->files["src"] . " 2> /dev/null", $out, $exitCode);
+            $xml = implode("\n", $out);
 
             $temp = tmpfile();
             fwrite($temp, $xml);
             fseek($temp, 0);
             $tempData = stream_get_meta_data($temp);
 
-            exec("python3.6 " . $this->settings["interpret"] . " --source=" . $tempData["uri"] . " < " . $this->files["in"] . " 2> /dev/null", $null, $exitCode);
+            exec("python3.6 " . $this->settings["interpret"] . " --source=\"" . $tempData["uri"] . "\" < " . $this->files["in"] . " 2> /dev/null", $null, $exitCode);
 
             if ($exitCode == $this->data["exitcode"]) {
                 $result[0] = true;
-                $result[1] = "Parser ended with expected exit code (" . $this->data["exitcode"] . ").";
+                $result[1] = "Interpet ended with expected exit code (" . $this->data["exitcode"] . ").";
             } else {
                 $result[0] = false;
-                $result[1] = "Parser ended with exit code " . $exitCode . " (expected " . $this->data["exitcode"] . ").";
+                $result[1] = "Interpet ended with exit code " . $exitCode . " (expected " . $this->data["exitcode"] . ").";
             }
 
             fclose($temp);
