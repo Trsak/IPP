@@ -21,6 +21,7 @@ class IPPcodeParseError(Exception):
 class InterpretFactory:
     def __init__(self):
         self.total_inst = 0
+        self.stat_vars = 0
         self.instructions = []
         self.labels = []
         self.calls = []
@@ -343,6 +344,24 @@ class InterpretFactory:
                 sys.stderr.write("--------- DEBUG INFO START ---------\n")
                 sys.stderr.write("Instrictions interpreted: %d\n" % self.total_inst)
                 sys.stderr.write("Current instruction number: %d\n" % int(current_inst + 1))
+                sys.stderr.write("-- Global frame:\n")
+                sys.stderr.write("Total: %d\n" % len(self.frames.global_frame))
+                for var in self.frames.global_frame:
+                    sys.stderr.write("%s (%d): %s\n" % (var.name, var.variable_type, var.value))
+                sys.stderr.write("-- Local frame:\n")
+                if self.frames.local_frame is not None:
+                    sys.stderr.write("Total: %d\n" % len(self.frames.local_frame))
+                    for var in self.frames.local_frame:
+                        sys.stderr.write("%s (%d): %s\n" % (var.name, var.variable_type, var.value))
+                else:
+                    sys.stderr.write("Not initialized\n")
+                if self.frames.temporary_frame is not None:
+                    sys.stderr.write("-- Temporary frame:\n")
+                    sys.stderr.write("Total: %d\n" % len(self.frames.temporary_frame))
+                    for var in self.frames.temporary_frame:
+                        sys.stderr.write("%s (%d): %s\n" % (var.name, var.variable_type, var.value))
+                else:
+                    sys.stderr.write("Not initialized\n")
                 sys.stderr.write("---------- DEBUG INFO END ----------\n")
             elif self.instructions[current_inst]["opcode"] == "ADDS":
                 self.variables_factory.aritmetic_operation(None, None, None, "add")
@@ -377,6 +396,8 @@ class InterpretFactory:
 
             current_inst += 1
             self.total_inst += 1
+
+        self.stat_vars = self.frames.stat_vars
 
     @staticmethod
     def count_args(actual, needed, opcode):
@@ -436,7 +457,7 @@ class InterpretFactory:
 
     def label(self, arg):
         if arg[0] != "label":
-            raise IPPcodeParseError("expected label")
+            raise IPPcodeParseError("expected label")  # TODO Forum Pazdiora 03--22
 
         if self.names_pattern.match(arg[1]):
             raise IPPcodeParseError("label name has wrong format")

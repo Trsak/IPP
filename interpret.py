@@ -107,9 +107,9 @@ try:
             stats = ""
             for argument in sys.argv:
                 if argument == "--vars":
-                    stats += "%d\n" % interpret.total_inst
+                    stats += "%d\n" % interpret.stat_vars
                 elif argument == "--insts":
-                    stats += "%d\n"
+                    stats += "%d\n" % interpret.total_inst
 
             file = open(args.stats, "w")
             file.seek(0)

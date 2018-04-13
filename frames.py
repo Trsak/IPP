@@ -3,13 +3,19 @@ import sys
 
 class Frames:
     def __init__(self):
+        self.get_vars_stats = None
         self.frame_stack = []
         self.global_frame = []
         self.local_frame = None
         self.temporary_frame = None
+        self.stat_vars = 0
+        self.vars_current = 0
 
     def push_frame(self):
         if self.temporary_frame:
+            if self.local_frame is not None:
+                self.vars_current -= len(self.local_frame)
+
             self.frame_stack.append(self.temporary_frame)
             self.local_frame = self.temporary_frame
             self.temporary_frame = None
@@ -19,9 +25,16 @@ class Frames:
 
     def pop_frame(self):
         if len(self.frame_stack) != 0:
+            if self.temporary_frame is not None:
+                self.vars_current -= len(self.temporary_frame)
+            if self.local_frame is not None:
+                self.vars_current -= len(self.local_frame)
+
             self.temporary_frame = self.frame_stack.pop()
+            self.vars_current += len(self.temporary_frame)
             try:
                 self.local_frame = self.frame_stack[-1]
+                self.vars_current += len(self.local_frame)
             except IndexError:
                 self.local_frame = None
         else:
@@ -29,12 +42,16 @@ class Frames:
             exit(55)
 
     def add_to_global_frame(self, variable):
+        self.vars_stats_add()
+
         if self.get_from_global_frame(variable.name, False):
             sys.stderr.write("ERROR: Variable %s already defined in global frame!\n" % variable.name)
             exit(52)
         self.global_frame.append(variable)
 
     def add_to_local_frame(self, variable):
+        self.vars_stats_add()
+
         if self.local_frame is None:
             sys.stderr.write("ERROR: LF is not initialized!\n")
             exit(55)
@@ -43,6 +60,8 @@ class Frames:
             self.local_frame.append(variable)
 
     def add_to_temporary_frame(self, variable):
+        self.vars_stats_add()
+
         if self.temporary_frame is None:
             sys.stderr.write("ERROR: TF is not initialized!\n")
             exit(55)
@@ -84,3 +103,8 @@ class Frames:
             exit(54)
 
         return None
+
+    def vars_stats_add(self):
+        self.vars_current += 1
+        if self.vars_current > self.stat_vars:
+            self.stat_vars = self.vars_current
