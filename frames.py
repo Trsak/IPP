@@ -19,12 +19,10 @@ class Frames:
         Pushes variable frame
         """
         if self.temporary_frame is not None:
-            if self.local_frame is not None:
-                self.vars_current -= len(self.local_frame)
-
             self.frame_stack.append(self.temporary_frame)
             self.local_frame = self.temporary_frame
             self.temporary_frame = None
+            self.vars_stats_calculate()
         else:
             sys.stderr.write("ERROR: TF not defined!\n")
             exit(55)
@@ -34,18 +32,12 @@ class Frames:
         Pops variable frame
         """
         if len(self.frame_stack) != 0:
-            if self.temporary_frame is not None:
-                self.vars_current -= len(self.temporary_frame)
-            if self.local_frame is not None:
-                self.vars_current -= len(self.local_frame)
-
             self.temporary_frame = self.frame_stack.pop()
-            self.vars_current += len(self.temporary_frame)
             try:
                 self.local_frame = self.frame_stack[-1]
-                self.vars_current += len(self.local_frame)
             except IndexError:
                 self.local_frame = None
+            self.vars_stats_calculate()
         else:
             sys.stderr.write("ERROR: Frame stack is empty!\n")
             exit(55)
@@ -55,19 +47,18 @@ class Frames:
         Adds variable to Global frame
         :param variable
         """
-        self.vars_stats_add()
 
         if self.get_from_global_frame(variable.name, False):
             sys.stderr.write("ERROR: Variable %s already defined in global frame!\n" % variable.name)
             exit(52)
         self.global_frame.append(variable)
+        self.vars_stats_calculate()
 
     def add_to_local_frame(self, variable):
         """
         Adds variable to Local frame
         :param variable
         """
-        self.vars_stats_add()
 
         if self.local_frame is None:
             sys.stderr.write("ERROR: LF is not initialized!\n")
@@ -75,13 +66,13 @@ class Frames:
 
         if not self.get_from_local_frame(variable.name, False):
             self.local_frame.append(variable)
+        self.vars_stats_calculate()
 
     def add_to_temporary_frame(self, variable):
         """
         Adds variable to Temporary frame
         :param variable
         """
-        self.vars_stats_add()
 
         if self.temporary_frame is None:
             sys.stderr.write("ERROR: TF is not initialized!\n")
@@ -91,6 +82,7 @@ class Frames:
             sys.stderr.write("ERROR: Variable %s already defined in temporary frame!\n" % variable.name)
             exit(52)
         self.temporary_frame.append(variable)
+        self.vars_stats_calculate()
 
     def get_from_local_frame(self, name, error_if_not_found=True):
         """
@@ -148,10 +140,17 @@ class Frames:
 
         return None
 
-    def vars_stats_add(self):
+    def vars_stats_calculate(self):
         """
         Changes variable stats
         """
-        self.vars_current += 1
+        self.vars_current = len(self.global_frame)
+
+        if self.temporary_frame is not None:
+            self.vars_current += len(self.temporary_frame)
+
+        if self.local_frame is not None:
+            self.vars_current += len(self.local_frame)
+
         if self.vars_current > self.stat_vars:
             self.stat_vars = self.vars_current
