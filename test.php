@@ -307,8 +307,18 @@ $longOptions = array(
 $options = getopt($shortOptions, $longOptions);
 
 //Parse parameters
-if (isset($options["help"]) && $argc != 2) {
-    echo "Help\n";
+if (isset($options["help"])) {
+    if ($argc != 2) {
+        fwrite(STDERR, "ERROR: Help can be used only standalone.\n");
+        exit(10);
+    }
+
+    echo "------------------------------------ Help ------------------------------------\n";
+    echo "Takes .src files with IPPcode18, parses and interprets it.\n";
+    echo "Afterwards, compares obtained and expected output and exit codes.\n";
+    echo "Usage: ";
+    echo "php5.6 parse.php --directory=tests_dir [--recursive]\n";
+    echo "------------------------------------------------------------------------------\n";
     exit(0);
 } elseif ((count($argv) !== (count($options) + 1)) && !isset($options["testlist"])) {
     fwrite(STDERR, "ERROR: Bad parameters usage! Use --help.\n");
@@ -510,7 +520,7 @@ tr.head {
     padding: 15px;
     text-align: center;
     text-decoration: none;
-    display: inline-block;
+    display: inline-block; 
     font-size: 16px;
 }
 
