@@ -39,26 +39,34 @@ class VariablesFactory:
             variable.variable_type = TYPE_BOOL
             variable.value = symb[1]
         elif symb[0] == "var":
-            symb_var = self.get_var(symb)
+            symb_var = self.get_var(symb, True)
             variable.value = symb_var.value
             variable.variable_type = symb_var.variable_type
 
-    def get_var(self, var):
+    def get_var(self, var, check_if_initialized=False):
         if var == "stack":
             return Variable("stack")
 
         frame, name = var[1].split("@")
 
+        variable = None
+
         if frame == "GF":
-            return self.frames.get_from_global_frame(name)
+            variable = self.frames.get_from_global_frame(name)
         elif frame == "TF":
-            return self.frames.get_from_temporary_frame(name)
+            variable = self.frames.get_from_temporary_frame(name)
         elif frame == "LF":
-            return self.frames.get_from_local_frame(name)
+            variable = self.frames.get_from_local_frame(name)
+
+        if variable.variable_type == TYPE_NONE and check_if_initialized:
+            sys.stderr.write("ERROR: %s is not initialized!\n" % var[1])
+            exit(56)
+
+        return variable
 
     def print_var(self, symb, debug=False):
         if symb[0] == "var":
-            variable = self.get_var(symb)
+            variable = self.get_var(symb, True)
             data_type = variable.variable_type
             value = variable.value
         else:
@@ -66,6 +74,10 @@ class VariablesFactory:
 
         if data_type == TYPE_FLOAT:
             value = float.hex(value)
+
+        if value is None:
+            sys.stderr.write("ERROR: %s does not have value!\n" % symb[1])
+            exit(56)
 
         if debug:
             sys.stderr.write(value)
@@ -82,14 +94,17 @@ class VariablesFactory:
             symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
             symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
 
-        if symb1_type != symb2_type or (symb1_type != TYPE_FLOAT and symb1_type != TYPE_INT):
-            sys.stderr.write("ERROR: Aritmetic instruction requires two float or int types!\n")
-            exit(53)
+        if symb1_type != TYPE_FLOAT and symb1_type != TYPE_INT:
+            sys.stderr.write("ERROR: Aritmetic instructions requires two float or int types!\n")
+            self.wrong_operands_exit(symb1, symb2, types=[TYPE_FLOAT, TYPE_INT])
         elif operation == "idiv" and symb1_type != TYPE_INT:
             sys.stderr.write("ERROR: IDIV instruction requires two int types!\n")
-            exit(53)
+            self.wrong_operands_exit(symb1, symb2, types=[TYPE_INT])
         elif operation == "div" and symb1_type != TYPE_FLOAT:
             sys.stderr.write("ERROR: DIV instruction requires two float types!\n")
+            self.wrong_operands_exit(symb1, symb2, types=[TYPE_FLOAT])
+        elif symb1_type != symb2_type:
+            sys.stderr.write("ERROR: Aritmetic instruction requires same types!\n")
             exit(53)
 
         variable.variable_type = symb1_type
@@ -156,7 +171,7 @@ class VariablesFactory:
 
         if symb1_type != symb2_type or symb1_type != TYPE_BOOL:
             sys.stderr.write("ERROR: Bool instructions can only have two symbols with bool types!\n")
-            exit(53)
+            self.wrong_operands_exit(symb1, symb2, types=[TYPE_BOOL])
 
         if symb1_value == "true":
             symb1_actual = True
@@ -179,9 +194,10 @@ class VariablesFactory:
         if var is None and symb1 is None and symb2 is None:
             self.data_stack.append([variable.variable_type, variable.value])
 
-    def get_symbol_type_and_value(self, symb):
+    def get_symbol_type_and_value(self, symb, check_if_initialized=True):
         if symb[0] == "var":
-            var = self.get_var(symb)
+            var = self.get_var(symb, check_if_initialized)
+
             return var.variable_type, var.value
         elif symb[0] == "float":
             return TYPE_FLOAT, symb[1]
@@ -194,7 +210,7 @@ class VariablesFactory:
 
     def get_type(self, var, symb):
         variable = self.get_var(var)
-        symb_type, symb_value = self.get_symbol_type_and_value(symb)
+        symb_type, symb_value = self.get_symbol_type_and_value(symb, False)
 
         variable.variable_type = TYPE_STRING
         if symb_type == TYPE_STRING:
@@ -218,7 +234,7 @@ class VariablesFactory:
 
         if symb_type != TYPE_INT:
             sys.stderr.write("ERROR: INT2CHAR requires symbol with int type!\n")
-            exit(53)
+            self.wrong_operands_exit(symb, types=[TYPE_INT])
 
         variable.variable_type = TYPE_STRING
         try:
@@ -240,10 +256,12 @@ class VariablesFactory:
             symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
             symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
 
-        if symb1_type != TYPE_STRING or symb2_type != TYPE_INT:
-            sys.stderr.write(
-                "ERROR: INT2CHAR must have first symbol with string type and second symbol with int type!\n")
-            exit(53)
+        if symb1_type != TYPE_STRING:
+            sys.stderr.write("ERROR: STRI2INT must have first symbol with string type!\n")
+            self.wrong_operands_exit(symb1, types=[TYPE_STRING])
+        elif symb2_type != TYPE_INT:
+            sys.stderr.write("ERROR: STRI2INT must have second symbol with int type!\n")
+            self.wrong_operands_exit(symb2, types=[TYPE_INT])
 
         variable.variable_type = TYPE_INT
         try:
@@ -308,7 +326,7 @@ class VariablesFactory:
 
         if symb1_type != TYPE_STRING or symb2_type != TYPE_STRING:
             sys.stderr.write("ERROR: CONCAT needs two string symbols!\n")
-            exit(53)
+            self.wrong_operands_exit(symb1, symb2, types=[TYPE_STRING])
 
         variable.variable_type = TYPE_STRING
         variable.value = symb1_value + symb2_value
@@ -319,7 +337,7 @@ class VariablesFactory:
 
         if symb_type != TYPE_STRING:
             sys.stderr.write("ERROR: STRLEN needs string symbol!\n")
-            exit(53)
+            self.wrong_operands_exit(symb, types=[TYPE_STRING])
 
         variable.variable_type = TYPE_INT
         variable.value = len(symb_value)
@@ -329,9 +347,12 @@ class VariablesFactory:
         symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
         symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
 
-        if symb1_type != TYPE_STRING or symb2_type != TYPE_INT:
-            sys.stderr.write("ERROR: GETCHAR needs first string symbol and second int symbol!\n")
-            exit(53)
+        if symb1_type != TYPE_STRING:
+            sys.stderr.write("ERROR: GETCHAR's first symbol must be string!\n")
+            self.wrong_operands_exit(symb1, types=[TYPE_STRING])
+        elif symb2_type != TYPE_INT:
+            sys.stderr.write("ERROR: GETCHAR's second symbol must be int!\n")
+            self.wrong_operands_exit(symb2, types=[TYPE_INT])
 
         variable.variable_type = TYPE_STRING
         try:
@@ -345,9 +366,15 @@ class VariablesFactory:
         symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
         symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
 
-        if variable.variable_type != TYPE_STRING or symb1_type != TYPE_INT or symb2_type != TYPE_STRING:
-            sys.stderr.write("ERROR: SETCHAR needs string var, first int symbol and second string symbol!\n")
+        if variable.variable_type != TYPE_STRING:
+            sys.stderr.write("ERROR: SETCHAR needs string var!\n")
             exit(53)
+        elif symb1_type != TYPE_INT:
+            sys.stderr.write("ERROR: SETCHAR's first symbol must be int!\n")
+            self.wrong_operands_exit(symb1, types=[TYPE_INT])
+        elif symb2_type != TYPE_STRING:
+            sys.stderr.write("ERROR: SETCHAR's second symbol must be string!\n")
+            self.wrong_operands_exit(symb2, types=[TYPE_STRING])
 
         try:
             if symb1_value > (len(variable.value) - 1) or symb1_value < 0:
@@ -398,7 +425,7 @@ class VariablesFactory:
 
         if symb_type != TYPE_INT:
             sys.stderr.write("ERROR: INT2FLOAT requires symbol with int type!\n")
-            exit(53)
+            self.wrong_operands_exit(symb, types=[TYPE_INT])
 
         variable.variable_type = TYPE_FLOAT
         variable.value = float(symb_value)
@@ -409,10 +436,22 @@ class VariablesFactory:
 
         if symb_type != TYPE_FLOAT:
             sys.stderr.write("ERROR: FLOAT2INT requires symbol with float type!\n")
-            exit(53)
+            self.wrong_operands_exit(symb, types=[TYPE_FLOAT])
 
         variable.variable_type = TYPE_INT
         variable.value = int(symb_value)
+
+    def wrong_operands_exit(self, *symbols, types=None):
+        if types is None:
+            types = []
+
+        for symb in symbols:
+            data_type, value = self.get_symbol_type_and_value(symb)
+            if data_type not in types:
+                if symb[0] == "var":
+                    exit(53)
+                else:
+                    exit(52)
 
 
 class Variable:

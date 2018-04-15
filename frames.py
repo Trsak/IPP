@@ -12,7 +12,7 @@ class Frames:
         self.vars_current = 0
 
     def push_frame(self):
-        if self.temporary_frame:
+        if self.temporary_frame is not None:
             if self.local_frame is not None:
                 self.vars_current -= len(self.local_frame)
 
@@ -72,6 +72,10 @@ class Frames:
         self.temporary_frame.append(variable)
 
     def get_from_local_frame(self, name, error_if_not_found=True):
+        if self.local_frame is None:
+            sys.stderr.write("ERROR: LF is not defined!\n")
+            exit(55)
+
         for var in self.local_frame:
             if var.name == name:
                 return var
@@ -83,6 +87,10 @@ class Frames:
         return None
 
     def get_from_temporary_frame(self, name, error_if_not_found=True):
+        if self.temporary_frame is None:
+            sys.stderr.write("ERROR: TF is not defined!\n")
+            exit(55)
+
         for var in self.temporary_frame:
             if var.name == name:
                 return var

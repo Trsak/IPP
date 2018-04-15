@@ -2,6 +2,7 @@ from frames import Frames
 import re
 from variables import *
 from xml.sax.saxutils import unescape
+import xml.etree.ElementTree as ET
 
 FRAMES = ["GF", "TF", "LF"]
 
@@ -240,7 +241,7 @@ class InterpretFactory:
             elif self.instructions[current_inst]["opcode"] == "RETURN":
                 if len(self.calls) == 0:
                     sys.stderr.write("ERROR: CALL stack is empty!\n")
-                    exit(55)
+                    exit(56)
                 current_inst = self.calls.pop()
             elif self.instructions[current_inst]["opcode"] == "PUSHS":
                 self.variables_factory.push_stack(self.instructions[current_inst]["args"][0])
@@ -402,13 +403,17 @@ class InterpretFactory:
     @staticmethod
     def count_args(actual, needed, opcode):
         if actual != needed:
-            raise IPPcodeParseError("too many or missing arguments for %s instruction" % opcode)
+            raise ET.ParseError("too many or missing arguments for %s instruction" % opcode)
 
     def var(self, arg):
         if arg[0] != "var":
             raise IPPcodeParseError("expected variable")
 
-        frame, name = arg[1].split("@")
+        try:
+            frame, name = arg[1].split("@")
+        except ValueError:
+            raise IPPcodeParseError("variable has wrong format")
+
         if self.names_pattern.match(name) or name[0].isdigit():
             raise IPPcodeParseError("variable name has wrong format")
 
@@ -424,12 +429,12 @@ class InterpretFactory:
         elif arg[0] == "int":
             try:
                 arg[1] = int(arg[1])
-            except ValueError:
+            except (ValueError, TypeError):
                 raise IPPcodeParseError("wrong int literal")
         elif arg[0] == "float":
             try:
                 arg[1] = float.fromhex(arg[1])
-            except ValueError:
+            except (ValueError, TypeError):
                 raise IPPcodeParseError("wrong float literal")
         elif arg[0] == "string":
             if arg[1] is None:
@@ -453,13 +458,13 @@ class InterpretFactory:
                         raise IPPcodeParseError("wrong string escape sequence")
                 i += 1
         else:
-            raise IPPcodeParseError("symbol can only be var, int, float, bool or string")
+            raise ET.ParseError("symbol can only be var, int, float, bool or string")
 
     def label(self, arg):
         if arg[0] != "label":
-            raise IPPcodeParseError("expected label")  # TODO Forum Pazdiora 03--22
+            raise IPPcodeParseError("expected label")
 
-        if self.names_pattern.match(arg[1]):
+        if self.names_pattern.match(arg[1]) or arg[1][0].isdigit():
             raise IPPcodeParseError("label name has wrong format")
 
     def type(self, arg):

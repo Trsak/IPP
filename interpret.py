@@ -94,6 +94,9 @@ try:
             while arg_num > len(args_list):
                 args_list.append(None)
 
+            if args_list[arg_num - 1] is not None:
+                raise ET.ParseError("argument already set")
+
             args_list[arg_num - 1] = [arg.attrib["type"], arg.text]
 
         if None in args_list:
