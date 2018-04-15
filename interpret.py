@@ -6,10 +6,15 @@ import interpret_factory as IFactory
 
 class ArgumentParser(argparse.ArgumentParser):
     def error(self, message):
+        """
+        Overrides argparse exit code
+        :param message: Error message
+        """
         sys.stderr.write("ERROR: Error while parsing arguments!\n")
         exit(10)
 
 
+# Add arguments
 parser = ArgumentParser(add_help=False)
 parser.add_argument("--help", action="store_true")
 parser.add_argument("--source")
@@ -17,6 +22,7 @@ parser.add_argument("--stats")
 parser.add_argument("--insts", action="store_true")
 parser.add_argument("--vars", action="store_true")
 
+# Parse arguments
 args = parser.parse_args()
 
 if args.help:
@@ -37,6 +43,7 @@ if not args.source:
     sys.stderr.write("ERROR: Missing --source parametr!\n")
     exit(10)
 
+# Start parsing source XML
 try:
     tree = ET.parse(args.source)
     root = tree.getroot()

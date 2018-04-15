@@ -9,10 +9,17 @@ TYPE_FLOAT = 4
 
 class VariablesFactory:
     def __init__(self, frames):
+        """
+        Sets default values
+        """
         self.frames = frames
         self.data_stack = []
 
     def def_var(self, var):
+        """
+        Defines variable
+        :param var: variable
+        """
         frame, name = var[1].split("@")
         new_variable = Variable(name)
 
@@ -24,6 +31,11 @@ class VariablesFactory:
             self.frames.add_to_local_frame(new_variable)
 
     def move_to_var(self, var, symb):
+        """
+        Moves symbol to variable
+        :param var: variable
+        :param symb: symbol
+        """
         variable = self.get_var(var)
 
         if symb[0] == "string":
@@ -44,6 +56,12 @@ class VariablesFactory:
             variable.variable_type = symb_var.variable_type
 
     def get_var(self, var, check_if_initialized=False):
+        """
+        Gets variable by name
+        :param var: Variable
+        :param check_if_initialized: If true, raises error when variable is not inizialized
+        :return: Variable
+        """
         if var == "stack":
             return Variable("stack")
 
@@ -65,6 +83,11 @@ class VariablesFactory:
         return variable
 
     def print_var(self, symb, debug=False):
+        """
+        Prints symbol value
+        :param symb: Symbol
+        :param debug: True if DPRINT is used
+        """
         if symb[0] == "var":
             variable = self.get_var(symb, True)
             data_type = variable.variable_type
@@ -85,6 +108,13 @@ class VariablesFactory:
             print(value)
 
     def aritmetic_operation(self, var, symb1, symb2, operation):
+        """
+        Interprets all aritmetic operations
+        :param var: Variable, where result is saved
+        :param symb1: First opearnd
+        :param symb2: Second operand
+        :param operation: Operation
+        """
         if var is None and symb1 is None and symb2 is None:
             variable = self.get_var("stack")
             symb2_type, symb2_value = self.pop_data_stack()
@@ -131,6 +161,13 @@ class VariablesFactory:
             self.data_stack.append([variable.variable_type, variable.value])
 
     def relation_operator(self, var, symb1, symb2, operator):
+        """
+        Interprets all relation operations
+        :param var: Variable, where result is saved
+        :param symb1: First opearnd
+        :param symb2: Second operand
+        :param operator: Operator
+        """
         if var is None and symb1 is None and symb2 is None:
             variable = self.get_var("stack")
             symb2_type, symb2_value = self.pop_data_stack()
@@ -156,6 +193,13 @@ class VariablesFactory:
             self.data_stack.append([variable.variable_type, variable.value])
 
     def bool_operator(self, var, symb1, symb2, operator):
+        """
+        Interprets all boolean operations
+        :param var: Variable, where result is saved
+        :param symb1: First opearnd
+        :param symb2: Second operand
+        :param operator: Operator
+        """
         if var is None and symb1 is None and symb2 is None:
             variable = self.get_var("stack")
             symb2_type, symb2_value = self.pop_data_stack()
@@ -195,6 +239,11 @@ class VariablesFactory:
             self.data_stack.append([variable.variable_type, variable.value])
 
     def get_symbol_type_and_value(self, symb, check_if_initialized=True):
+        """
+        Gets value and type of symbol
+        :param check_if_initialized: If true, then raises error when variable is not initialized
+        :param symb: Symbol
+        """
         if symb[0] == "var":
             var = self.get_var(symb, check_if_initialized)
 
@@ -209,6 +258,11 @@ class VariablesFactory:
             return TYPE_STRING, symb[1]
 
     def get_type(self, var, symb):
+        """
+        Gets symbol type
+        :param var: Variable, where result is saved
+        :param symb: Symbol
+        """
         variable = self.get_var(var)
         symb_type, symb_value = self.get_symbol_type_and_value(symb, False)
 
@@ -225,6 +279,11 @@ class VariablesFactory:
             variable.value = ""
 
     def int_to_char(self, var, symb):
+        """
+        Interprets INT2CHAR instruction
+        :param var: Variable, where result is saved
+        :param symb: Operand
+        """
         if var is None and symb is None:
             variable = self.get_var("stack")
             symb_type, symb_value = self.pop_data_stack()
@@ -247,6 +306,12 @@ class VariablesFactory:
             self.data_stack.append([variable.variable_type, variable.value])
 
     def stri_to_int(self, var, symb1, symb2):
+        """
+        Interprets STRI2INT instruction
+        :param var: Variable, where result is saved
+        :param symb1: First operand
+        :param symb2: Second operand
+        """
         if var is None and symb1 is None and symb2 is None:
             variable = self.get_var("stack")
             symb2_type, symb2_value = self.pop_data_stack()
@@ -274,6 +339,11 @@ class VariablesFactory:
             self.data_stack.append([variable.variable_type, variable.value])
 
     def is_equal(self, symb1, symb2):
+        """
+        Checks if symbols are equal
+        :param symb1: First operand
+        :param symb2: Second operand
+        """
         if symb1 is None and symb2 is None:
             symb2_type, symb2_value = self.pop_data_stack()
             symb1_type, symb1_value = self.pop_data_stack()
@@ -288,6 +358,11 @@ class VariablesFactory:
         return symb1_value == symb2_value
 
     def is_not_equal(self, symb1, symb2):
+        """
+        Checks if symbols are not equal
+        :param symb1: First operand
+        :param symb2: Second operand
+        """
         if symb1 is None and symb2 is None:
             symb2_type, symb2_value = self.pop_data_stack()
             symb1_type, symb1_value = self.pop_data_stack()
@@ -302,17 +377,32 @@ class VariablesFactory:
         return symb1_value != symb2_value
 
     def clear_stack(self):
+        """
+        Clears data stack
+        """
         self.data_stack = []
 
     def push_stack(self, symb):
+        """
+        Pushes symbol to data stack
+        :param symb: symbol
+        """
         symb_type, symb_value = self.get_symbol_type_and_value(symb)
         self.data_stack.append([symb_type, symb_value])
 
     def pop_stack(self, var):
+        """
+        Pops symbol from data stack to variable
+        :param var: variable
+        """
         variable = self.get_var(var)
         variable.variable_type, variable.value = self.pop_data_stack()
 
     def pop_data_stack(self):
+        """
+        Checks if data stack can be popped and pops it
+        :return: Returns popped symbol
+        """
         if len(self.data_stack) == 0:
             sys.stderr.write("ERROR: Data stack is empty!\n")
             exit(56)
@@ -320,6 +410,12 @@ class VariablesFactory:
         return self.data_stack.pop()
 
     def concat_strings(self, var, symb1, symb2):
+        """
+        Interprets CONCAT instruction
+        :param var: Variable, where result is saved
+        :param symb1: First operand
+        :param symb2: Second operand
+        """
         variable = self.get_var(var)
         symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
         symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
@@ -332,6 +428,11 @@ class VariablesFactory:
         variable.value = symb1_value + symb2_value
 
     def len_string(self, var, symb):
+        """
+        Interprets STRLEN instruction
+        :param var: Variable, where result is saved
+        :param symb: Operand
+        """
         variable = self.get_var(var)
         symb_type, symb_value = self.get_symbol_type_and_value(symb)
 
@@ -343,6 +444,12 @@ class VariablesFactory:
         variable.value = len(symb_value)
 
     def get_char(self, var, symb1, symb2):
+        """
+        Interprets GETCHAR instruction
+        :param var: Variable, where result is saved
+        :param symb1: First operand
+        :param symb2: Second operand
+        """
         variable = self.get_var(var)
         symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
         symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
@@ -362,6 +469,12 @@ class VariablesFactory:
             exit(58)
 
     def set_char(self, var, symb1, symb2):
+        """
+        Interprets SETCHAR instruction
+        :param var: Variable to modify
+        :param symb1: First operand
+        :param symb2: Second operand
+        """
         variable = self.get_var(var)
         symb1_type, symb1_value = self.get_symbol_type_and_value(symb1)
         symb2_type, symb2_value = self.get_symbol_type_and_value(symb2)
@@ -386,6 +499,11 @@ class VariablesFactory:
             exit(58)
 
     def read_var(self, var, var_type):
+        """
+        Reads variable value from stdin
+        :param var: Variable
+        :param var_type: Variable type
+        """
         var_type = var_type[1]
         try:
             value = input()
@@ -420,6 +538,11 @@ class VariablesFactory:
         variable.value = value
 
     def int_to_float(self, var, symb):
+        """
+        Converts int to float
+        :param var: Variable, where float value is saved
+        :param symb: Int symbol
+        """
         variable = self.get_var(var)
         symb_type, symb_value = self.get_symbol_type_and_value(symb)
 
@@ -431,6 +554,11 @@ class VariablesFactory:
         variable.value = float(symb_value)
 
     def float_to_int(self, var, symb):
+        """
+        Converts float to int
+        :param var: Variable, where int value is saved
+        :param symb: Float symbol
+        """
         variable = self.get_var(var)
         symb_type, symb_value = self.get_symbol_type_and_value(symb)
 
@@ -442,6 +570,11 @@ class VariablesFactory:
         variable.value = int(symb_value)
 
     def wrong_operands_exit(self, *symbols, types=None):
+        """
+        Checks operands and exits on wrong operand types
+        :param symbols: Operands
+        :param types: Allowd types
+        """
         if types is None:
             types = []
 
@@ -456,6 +589,10 @@ class VariablesFactory:
 
 class Variable:
     def __init__(self, name):
+        """
+        Defines variable default values
+        :param name: Variable name
+        """
         self.name = name
         self.variable_type = TYPE_NONE
         self.value = None

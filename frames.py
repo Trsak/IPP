@@ -3,6 +3,9 @@ import sys
 
 class Frames:
     def __init__(self):
+        """
+        Sets default values
+        """
         self.get_vars_stats = None
         self.frame_stack = []
         self.global_frame = []
@@ -12,6 +15,9 @@ class Frames:
         self.vars_current = 0
 
     def push_frame(self):
+        """
+        Pushes variable frame
+        """
         if self.temporary_frame is not None:
             if self.local_frame is not None:
                 self.vars_current -= len(self.local_frame)
@@ -24,6 +30,9 @@ class Frames:
             exit(55)
 
     def pop_frame(self):
+        """
+        Pops variable frame
+        """
         if len(self.frame_stack) != 0:
             if self.temporary_frame is not None:
                 self.vars_current -= len(self.temporary_frame)
@@ -42,6 +51,10 @@ class Frames:
             exit(55)
 
     def add_to_global_frame(self, variable):
+        """
+        Adds variable to Global frame
+        :param variable
+        """
         self.vars_stats_add()
 
         if self.get_from_global_frame(variable.name, False):
@@ -50,6 +63,10 @@ class Frames:
         self.global_frame.append(variable)
 
     def add_to_local_frame(self, variable):
+        """
+        Adds variable to Local frame
+        :param variable
+        """
         self.vars_stats_add()
 
         if self.local_frame is None:
@@ -60,6 +77,10 @@ class Frames:
             self.local_frame.append(variable)
 
     def add_to_temporary_frame(self, variable):
+        """
+        Adds variable to Temporary frame
+        :param variable
+        """
         self.vars_stats_add()
 
         if self.temporary_frame is None:
@@ -72,6 +93,11 @@ class Frames:
         self.temporary_frame.append(variable)
 
     def get_from_local_frame(self, name, error_if_not_found=True):
+        """
+        Finds variable in LF by name and returns it
+        :param name: variable name
+        :param error_if_not_found: if true, raises error when variable is not found
+        """
         if self.local_frame is None:
             sys.stderr.write("ERROR: LF is not defined!\n")
             exit(55)
@@ -87,6 +113,11 @@ class Frames:
         return None
 
     def get_from_temporary_frame(self, name, error_if_not_found=True):
+        """
+        Finds variable in TF by name and returns it
+        :param name: variable name
+        :param error_if_not_found: if true, raises error when variable is not found
+        """
         if self.temporary_frame is None:
             sys.stderr.write("ERROR: TF is not defined!\n")
             exit(55)
@@ -102,6 +133,11 @@ class Frames:
         return None
 
     def get_from_global_frame(self, name, error_if_not_found=True):
+        """
+        Finds variable in GF by name and returns it
+        :param name: variable name
+        :param error_if_not_found: if true, raises error when variable is not found
+        """
         for var in self.global_frame:
             if var.name == name:
                 return var
@@ -113,6 +149,9 @@ class Frames:
         return None
 
     def vars_stats_add(self):
+        """
+        Changes variable stats
+        """
         self.vars_current += 1
         if self.vars_current > self.stat_vars:
             self.stat_vars = self.vars_current

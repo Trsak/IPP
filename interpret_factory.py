@@ -21,6 +21,9 @@ class IPPcodeParseError(Exception):
 
 class InterpretFactory:
     def __init__(self):
+        """
+        Set all variables to its default values
+        """
         self.total_inst = 0
         self.stat_vars = 0
         self.instructions = []
@@ -31,6 +34,12 @@ class InterpretFactory:
         self.variables_factory = VariablesFactory(self.frames)
 
     def add_instruction(self, opcode, args, position):
+        """
+        Parses instruction from XML
+        :param opcode: Instruction code
+        :param args: Instruction arguments
+        :param position: Instruction position
+        """
         if opcode not in INSTRUCTIONS:
             raise IPPcodeParseError("unknown instrustion %s" % opcode)
 
@@ -220,6 +229,9 @@ class InterpretFactory:
             raise IPPcodeParseError("missing arguments for %s instruction" % opcode)
 
     def run(self):
+        """
+        Runs program and interprets all the instructions
+        """
         inst_len = len(self.instructions)
         current_inst = 0
 
@@ -402,10 +414,20 @@ class InterpretFactory:
 
     @staticmethod
     def count_args(actual, needed, opcode):
+        """
+        Counts if instruction has valid arguments number
+        :param actual: Actual instruction's number of arguments
+        :param needed: Needed instruction's number of arguments
+        :param opcode: Instruction code
+        """
         if actual != needed:
             raise ET.ParseError("too many or missing arguments for %s instruction" % opcode)
 
     def var(self, arg):
+        """
+        Parse and validate variable
+        :param arg: Variable argument
+        """
         if arg[0] != "var":
             raise IPPcodeParseError("expected variable")
 
@@ -421,6 +443,10 @@ class InterpretFactory:
             raise IPPcodeParseError("unknown frame")
 
     def symb(self, arg):
+        """
+        Parse and validate symbols
+        :param arg: Symbol argument
+        """
         if arg[0] == "var":
             self.var(arg)
         elif arg[0] == "bool":
@@ -461,13 +487,22 @@ class InterpretFactory:
             raise ET.ParseError("symbol can only be var, int, float, bool or string")
 
     def label(self, arg):
+        """
+        Parses and valids Labels
+        :param arg: Label argument
+        """
         if arg[0] != "label":
             raise IPPcodeParseError("expected label")
 
         if self.names_pattern.match(arg[1]) or arg[1][0].isdigit():
             raise IPPcodeParseError("label name has wrong format")
 
-    def type(self, arg):
+    @staticmethod
+    def type(arg):
+        """
+        Parses and valids types
+        :param arg: Type argument
+        """
         if arg[0] != "type":
             raise IPPcodeParseError("expected type")
 
@@ -475,6 +510,11 @@ class InterpretFactory:
             raise IPPcodeParseError("unexpected type")
 
     def find_label(self, name):
+        """
+        Finds label by name and returns it
+        :param name: label name
+        :return: label or None if not found
+        """
         for label in self.labels:
             if label[0] == name:
                 return label
@@ -482,6 +522,11 @@ class InterpretFactory:
         return None
 
     def add_label(self, arg, position):
+        """
+        Adds new label
+        :param arg: label name
+        :param position: label position
+        """
         label = arg[1]
 
         if not self.find_label(label):
@@ -491,6 +536,11 @@ class InterpretFactory:
             exit(52)
 
     def jump_to_label(self, arg):
+        """
+        Find label and get its position for jump
+        :param arg: Label
+        :return: Label position
+        """
         self.total_inst += 1
         label = self.find_label(arg[1])
 
