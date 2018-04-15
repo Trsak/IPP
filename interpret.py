@@ -46,6 +46,7 @@ if not args.source:
 # Start parsing source XML
 try:
     tree = ET.parse(args.source)
+    # Valid root element
     root = tree.getroot()
     if root.tag != "program":
         raise ET.ParseError("root element must be program")
@@ -62,6 +63,8 @@ try:
 
     interpret = IFactory.InterpretFactory()
     order = 1
+
+    # Start validating instruction elements
     for child in root:
         opcode = None
         if child.tag != "instruction":
@@ -70,6 +73,7 @@ try:
         if "opcode" not in child.attrib or "order" not in child.attrib:
             raise ET.ParseError("missing attribute opcode or order in program element")
 
+        # Validate opcode and order
         for attrib, value in child.attrib.items():
             if attrib == "opcode":
                 opcode = value
@@ -80,6 +84,7 @@ try:
             else:
                 raise ET.ParseError("instruction element can only contain opcode or order argument")
 
+        # Validate instruction arguments
         args_list = []
         for arg in child:
             try:
@@ -112,6 +117,7 @@ try:
         interpret.add_instruction(opcode, args_list, order)
     interpret.run()
 
+    # Write stats
     if args.stats:
         try:
             stats = ""
